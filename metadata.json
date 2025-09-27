@@ -1,0 +1,5 @@
+{
+  "name": "Studytube AI",
+  "description": "An AI-powered video learning tool to enhance YouTube study sessions with interactive timestamps, link integration, progress tracking, and a Gemini-powered chatbot for contextual assistance.",
+  "requestFramePermissions": []
+}
