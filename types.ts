@@ -37,7 +37,8 @@ export interface VideoSession {
   insertedLinks: InsertedLink[];
   watchedSeconds: number[];
   currentTime: number;
-  timestampedNotes: TimestampedNote[];
+  notes: TimestampedNote[];
+  highlights: TimestampedNote[];
 }
 
 export interface QuizItem {
@@ -61,7 +62,7 @@ export interface TodoItem {
 }
 
 export interface CourseLink {
-  id: string;
+  id:string;
   title: string;
   url: string;
 }

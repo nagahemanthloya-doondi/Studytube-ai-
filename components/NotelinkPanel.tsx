@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import type { InsertedLink, TimestampedNote } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -13,13 +14,16 @@ interface NotelinkPanelProps {
   setTimestampedNotes: React.Dispatch<React.SetStateAction<TimestampedNote[]>>;
   currentTime: number;
   onTimestampClick: (time: number) => void;
+  onPause: () => void;
+  onResume: () => void;
 }
 
 const NotelinkPanel: React.FC<NotelinkPanelProps> = (props) => {
   const { 
     insertedLinks, setInsertedLinks, 
     timestampedNotes, setTimestampedNotes,
-    currentTime, onTimestampClick 
+    currentTime, onTimestampClick,
+    onPause, onResume
   } = props;
 
   const [isNoteOpen, setNoteOpen] = useState(true);
@@ -56,6 +60,7 @@ const NotelinkPanel: React.FC<NotelinkPanelProps> = (props) => {
 
     setInsertedLinks(prev => [...prev, newLink].sort((a,b) => a.time - b.time));
     setNewUrl('');
+    onResume();
   };
 
   const handleSaveNote = () => {
@@ -67,6 +72,7 @@ const NotelinkPanel: React.FC<NotelinkPanelProps> = (props) => {
     };
     setTimestampedNotes(prev => [...prev, newNote].sort((a, b) => a.time - b.time));
     setCurrentNote('');
+    onResume();
   };
   
   const removeLink = (id: string) => {
@@ -105,6 +111,7 @@ const NotelinkPanel: React.FC<NotelinkPanelProps> = (props) => {
               <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Scratchpad</h3>
               <textarea
                 value={currentNote}
+                onFocus={onPause}
                 onChange={(e) => setCurrentNote(e.target.value)}
                 placeholder="Jot down your thoughts here..."
                 className="w-full h-24 p-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md resize-none focus:ring-2 focus:ring-cyan-500 focus:outline-none transition-colors"
@@ -142,6 +149,7 @@ const NotelinkPanel: React.FC<NotelinkPanelProps> = (props) => {
                 <input
                   type="text"
                   value={newUrl}
+                  onFocus={onPause}
                   onChange={(e) => setNewUrl(e.target.value)}
                   placeholder={`Add link at ${formatTime(currentTime)}...`}
                   className="w-full p-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-cyan-500 focus:outline-none transition-colors"

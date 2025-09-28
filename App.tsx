@@ -20,7 +20,8 @@ const App: React.FC = () => {
   const [videoSessions, setVideoSessions] = useLocalStorage<Record<string, VideoSession>>('studytube-video-sessions', {});
 
   const [insertedLinks, setInsertedLinks] = useState<InsertedLink[]>([]);
-  const [timestampedNotes, setTimestampedNotes] = useState<TimestampedNote[]>([]);
+  const [notes, setNotes] = useState<TimestampedNote[]>([]);
+  const [highlights, setHighlights] = useState<TimestampedNote[]>([]);
   const [videoTitle, setVideoTitle] = useState('Video Title Placeholder');
   
   const [player, setPlayer] = useState<YT.Player | null>(null);
@@ -115,7 +116,8 @@ const App: React.FC = () => {
     if (previousVideoId && previousVideoId !== videoId) {
       const sessionToSave: VideoSession = {
         insertedLinks,
-        timestampedNotes,
+        notes,
+        highlights,
         watchedSeconds: Array.from(playerState.watchedSeconds),
         currentTime: playerState.currentTime,
       };
@@ -129,7 +131,8 @@ const App: React.FC = () => {
     const newSession = videoId ? videoSessions[videoId] : null;
     if (newSession) {
       setInsertedLinks(newSession.insertedLinks);
-      setTimestampedNotes(newSession.timestampedNotes || []); // Handle old sessions
+      setNotes(newSession.notes || []); 
+      setHighlights(newSession.highlights || []);
       setPlayerState(prev => ({
         ...prev,
         currentTime: newSession.currentTime,
@@ -141,7 +144,8 @@ const App: React.FC = () => {
     } else {
       // Or reset if no session found
       setInsertedLinks([]);
-      setTimestampedNotes([]);
+      setNotes([]);
+      setHighlights([]);
       setPlayerState({
         currentTime: 0,
         duration: 0,
@@ -160,7 +164,8 @@ const App: React.FC = () => {
       if (videoId) {
         const sessionToSave: VideoSession = {
           insertedLinks,
-          timestampedNotes,
+          notes,
+          highlights,
           watchedSeconds: Array.from(playerState.watchedSeconds),
           currentTime: playerState.currentTime,
         };
@@ -174,7 +179,7 @@ const App: React.FC = () => {
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
-  }, [videoId, insertedLinks, playerState, timestampedNotes]);
+  }, [videoId, insertedLinks, playerState, notes, highlights]);
   
   const addToHistory = useCallback(async (url: string) => {
     const existingItem = history.find(item => item.url === url);
@@ -259,7 +264,8 @@ const App: React.FC = () => {
     setIsGeneratingQuiz(true);
     resetQuiz();
     try {
-      const generatedQuiz = await generateQuiz(videoTitle, timestampedNotes);
+      const allNotes = [...notes, ...highlights];
+      const generatedQuiz = await generateQuiz(videoTitle, allNotes);
       setQuiz(generatedQuiz);
     } catch (error: any) {
       console.error(error);
@@ -315,6 +321,14 @@ const App: React.FC = () => {
     setPdfFile(null);
   };
 
+  const pauseVideo = useCallback(() => {
+    player?.pauseVideo();
+  }, [player]);
+
+  const playVideo = useCallback(() => {
+    player?.playVideo();
+  }, [player]);
+
   return (
     <div className="min-h-screen font-sans text-gray-800 bg-white dark:text-gray-200 dark:bg-gray-950 transition-colors duration-300">
       <Header 
@@ -342,23 +356,25 @@ const App: React.FC = () => {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.5 }}
-              className={`grid grid-cols-1 ${pdfFileUrl ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-6`}
+              className="grid grid-cols-1 md:grid-cols-5 gap-6"
             >
-                <div className="lg:col-span-2">
-                    <PlayerSection 
-                        videoId={videoId}
-                        videoTitle={videoTitle}
-                        playerState={playerState}
-                        onPlayerReady={onPlayerReady}
-                        onProgress={handleProgress}
-                        insertedLinks={insertedLinks}
-                        onLinkTrigger={handleLinkTrigger}
-                    />
-                </div>
+              <div className="md:col-span-3">
+                <PlayerSection 
+                  videoId={videoId}
+                  videoTitle={videoTitle}
+                  playerState={playerState}
+                  onPlayerReady={onPlayerReady}
+                  onProgress={handleProgress}
+                  insertedLinks={insertedLinks}
+                  onLinkTrigger={handleLinkTrigger}
+                />
+              </div>
+
+              <div className="md:col-span-2 flex flex-col gap-6" style={{ maxHeight: 'calc(100vh - 120px)' }}>
                 <AnimatePresence>
                   {pdfFileUrl && (
                     <motion.div 
-                      className="lg:col-span-1 max-h-[calc(100vh-120px)]"
+                      className="flex-1 min-h-0"
                       initial={{ opacity: 0, x: 20 }}
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0, x: 20, transition: { duration: 0.2 } }}
@@ -374,31 +390,37 @@ const App: React.FC = () => {
                     </motion.div>
                   )}
                 </AnimatePresence>
-                <div className="lg:col-span-1 max-h-[calc(100vh-120px)]">
-                    <NotesPanel 
-                        insertedLinks={insertedLinks}
-                        setInsertedLinks={setInsertedLinks}
-                        timestampedNotes={timestampedNotes}
-                        setTimestampedNotes={setTimestampedNotes}
-                        onTimestampClick={seekTo}
-                        currentTime={playerState.currentTime}
-                        activeTab={activeNoteTab}
-                        setActiveTab={setActiveNoteTab}
-                        messages={messages}
-                        onSendMessage={handleSendMessage}
-                        isBotTyping={isBotTyping}
-                        quiz={quiz}
-                        setQuiz={setQuiz}
-                        isGeneratingQuiz={isGeneratingQuiz}
-                        quizError={quizError}
-                        userAnswers={userAnswers}
-                        quizResult={quizResult}
-                        onGenerateQuiz={handleGenerateQuiz}
-                        onAnswerChange={handleAnswerChange}
-                        onCheckAnswers={handleCheckAnswers}
-                        onResetQuiz={resetQuiz}
-                    />
+                <div className="flex-1 min-h-0">
+                  <NotesPanel 
+                    insertedLinks={insertedLinks}
+                    setInsertedLinks={setInsertedLinks}
+                    notes={notes}
+                    setNotes={setNotes}
+                    highlights={highlights}
+                    setHighlights={setHighlights}
+                    onTimestampClick={seekTo}
+                    currentTime={playerState.currentTime}
+                    duration={playerState.duration}
+                    activeTab={activeNoteTab}
+                    setActiveTab={setActiveNoteTab}
+                    messages={messages}
+                    onSendMessage={handleSendMessage}
+                    isBotTyping={isBotTyping}
+                    quiz={quiz}
+                    setQuiz={setQuiz}
+                    isGeneratingQuiz={isGeneratingQuiz}
+                    quizError={quizError}
+                    userAnswers={userAnswers}
+                    quizResult={quizResult}
+                    onGenerateQuiz={handleGenerateQuiz}
+                    onAnswerChange={handleAnswerChange}
+                    onCheckAnswers={handleCheckAnswers}
+                    onResetQuiz={resetQuiz}
+                    onPauseVideo={pauseVideo}
+                    onPlayVideo={playVideo}
+                  />
                 </div>
+              </div>
             </motion.div>
          )}
          </AnimatePresence>

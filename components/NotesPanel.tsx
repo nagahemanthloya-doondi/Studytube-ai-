@@ -9,10 +9,13 @@ import QuizView from './QuizView';
 interface NotesPanelProps {
   insertedLinks: InsertedLink[];
   setInsertedLinks: React.Dispatch<React.SetStateAction<InsertedLink[]>>;
-  timestampedNotes: TimestampedNote[];
-  setTimestampedNotes: React.Dispatch<React.SetStateAction<TimestampedNote[]>>;
+  notes: TimestampedNote[];
+  setNotes: React.Dispatch<React.SetStateAction<TimestampedNote[]>>;
+  highlights: TimestampedNote[];
+  setHighlights: React.Dispatch<React.SetStateAction<TimestampedNote[]>>;
   onTimestampClick: (time: number) => void;
   currentTime: number;
+  duration: number;
   activeTab: string;
   setActiveTab: (tab: string) => void;
   messages: Message[];
@@ -28,6 +31,8 @@ interface NotesPanelProps {
   onAnswerChange: (questionIndex: number, answer: string) => void;
   onCheckAnswers: () => void;
   onResetQuiz: () => void;
+  onPauseVideo: () => void;
+  onPlayVideo: () => void;
 }
 
 const TABS = ['Highlights', 'Notelink', 'AI Quiz', 'AI Assistant'];
@@ -52,19 +57,23 @@ const NotesPanel: React.FC<NotesPanelProps> = (props) => {
         <div className="flex-grow min-h-0">
             {activeTab === 'Highlights' && (
                 <HighlightsPanel
-                    timestamps={props.timestampedNotes}
-                    setTimestamps={props.setTimestampedNotes}
+                    timestamps={props.highlights}
+                    setTimestamps={props.setHighlights}
                     onTimestampClick={props.onTimestampClick}
+                    currentTime={props.currentTime}
+                    duration={props.duration}
                 />
             )}
             {activeTab === 'Notelink' && (
                 <NotelinkPanel
                     insertedLinks={props.insertedLinks}
                     setInsertedLinks={props.setInsertedLinks}
-                    timestampedNotes={props.timestampedNotes}
-                    setTimestampedNotes={props.setTimestampedNotes}
+                    timestampedNotes={props.notes}
+                    setTimestampedNotes={props.setNotes}
                     onTimestampClick={props.onTimestampClick}
                     currentTime={props.currentTime}
+                    onPause={props.onPauseVideo}
+                    onResume={props.onPlayVideo}
                 />
             )}
             {activeTab === 'AI Quiz' && (
