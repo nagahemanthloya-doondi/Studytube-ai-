@@ -1,12 +1,14 @@
-
 import React, { useState } from 'react';
-import type { Timestamp, InsertedLink } from '../types';
+// FIX: Replaced deprecated 'Timestamp' type with 'TimestampedNote' to align with the application's current data model.
+import type { TimestampedNote, InsertedLink } from '../types';
 import TimestampManager from './TimestampManager';
 import LinkInserter from './LinkInserter';
 
 interface ControlPanelProps {
-  timestamps: Timestamp[];
-  setTimestamps: React.Dispatch<React.SetStateAction<Timestamp[]>>;
+  // FIX: Updated the type from Timestamp[] to TimestampedNote[]
+  timestamps: TimestampedNote[];
+  // FIX: Updated the type from Timestamp[] to TimestampedNote[]
+  setTimestamps: React.Dispatch<React.SetStateAction<TimestampedNote[]>>;
   insertedLinks: InsertedLink[];
   setInsertedLinks: React.Dispatch<React.SetStateAction<InsertedLink[]>>;
   onTimestampClick: (time: number) => void;

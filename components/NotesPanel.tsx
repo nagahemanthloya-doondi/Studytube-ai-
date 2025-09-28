@@ -1,12 +1,16 @@
+
 import React from 'react';
-import type { Timestamp, Message } from '../types';
-import TimestampManager from './TimestampManager';
+import type { Message, QuizItem, InsertedLink, TimestampedNote } from '../types';
+import HighlightsPanel from './HighlightsPanel';
+import NotelinkPanel from './NotelinkPanel';
 import Chatbot from './Chatbot';
-import PdfView from './PdfView';
+import QuizView from './QuizView';
 
 interface NotesPanelProps {
-  timestamps: Timestamp[];
-  setTimestamps: React.Dispatch<React.SetStateAction<Timestamp[]>>;
+  insertedLinks: InsertedLink[];
+  setInsertedLinks: React.Dispatch<React.SetStateAction<InsertedLink[]>>;
+  timestampedNotes: TimestampedNote[];
+  setTimestampedNotes: React.Dispatch<React.SetStateAction<TimestampedNote[]>>;
   onTimestampClick: (time: number) => void;
   currentTime: number;
   activeTab: string;
@@ -14,12 +18,19 @@ interface NotesPanelProps {
   messages: Message[];
   onSendMessage: (text: string) => void;
   isBotTyping: boolean;
-  pdfFileUrl: string | null;
-  onPdfUpload: (file: File) => void;
-  onPdfClear: () => void;
+  quiz: QuizItem[] | null;
+  setQuiz: React.Dispatch<React.SetStateAction<QuizItem[] | null>>;
+  isGeneratingQuiz: boolean;
+  quizError: string | null;
+  userAnswers: Record<number, string>;
+  quizResult: { score: number; total: number } | null;
+  onGenerateQuiz: () => void;
+  onAnswerChange: (questionIndex: number, answer: string) => void;
+  onCheckAnswers: () => void;
+  onResetQuiz: () => void;
 }
 
-const TABS = ['PDF', 'Highlights', 'AI Assistant'];
+const TABS = ['Highlights', 'Notelink', 'AI Quiz', 'AI Assistant'];
 
 const NotesPanel: React.FC<NotesPanelProps> = (props) => {
     const { activeTab, setActiveTab } = props;
@@ -39,20 +50,43 @@ const NotesPanel: React.FC<NotesPanelProps> = (props) => {
         </div>
         
         <div className="flex-grow min-h-0">
-            {activeTab === 'Highlights' && <TimestampManager {...props} />}
+            {activeTab === 'Highlights' && (
+                <HighlightsPanel
+                    timestamps={props.timestampedNotes}
+                    setTimestamps={props.setTimestampedNotes}
+                    onTimestampClick={props.onTimestampClick}
+                />
+            )}
+            {activeTab === 'Notelink' && (
+                <NotelinkPanel
+                    insertedLinks={props.insertedLinks}
+                    setInsertedLinks={props.setInsertedLinks}
+                    timestampedNotes={props.timestampedNotes}
+                    setTimestampedNotes={props.setTimestampedNotes}
+                    onTimestampClick={props.onTimestampClick}
+                    currentTime={props.currentTime}
+                />
+            )}
+            {activeTab === 'AI Quiz' && (
+              <QuizView
+                quiz={props.quiz}
+                setQuiz={props.setQuiz}
+                isGeneratingQuiz={props.isGeneratingQuiz}
+                quizError={props.quizError}
+                userAnswers={props.userAnswers}
+                quizResult={props.quizResult}
+                onGenerateQuiz={props.onGenerateQuiz}
+                onAnswerChange={props.onAnswerChange}
+                onCheckAnswers={props.onCheckAnswers}
+                onResetQuiz={props.onResetQuiz}
+              />
+            )}
             {activeTab === 'AI Assistant' && (
                 <Chatbot 
                     messages={props.messages} 
                     onSendMessage={props.onSendMessage} 
                     isBotTyping={props.isBotTyping}
-                    onClose={() => setActiveTab('Highlights')}
-                />
-            )}
-            {activeTab === 'PDF' && (
-                <PdfView
-                    pdfFileUrl={props.pdfFileUrl}
-                    onPdfUpload={props.onPdfUpload}
-                    onPdfClear={props.onPdfClear}
+                    onClose={() => setActiveTab('Notelink')}
                 />
             )}
         </div>

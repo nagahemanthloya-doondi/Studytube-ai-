@@ -1,13 +1,16 @@
+
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useLocalStorage } from './hooks/useLocalStorage';
-import type { Timestamp, InsertedLink, Theme, PlayerState, Message, HistoryItem, VideoSession } from './types';
+import type { InsertedLink, Theme, PlayerState, Message, HistoryItem, VideoSession, QuizItem, TimestampedNote, Course } from './types';
 import { Chat } from '@google/genai';
-import { getGeminiChat } from './services/geminiService';
+import { getGeminiChat, generateQuiz } from './services/geminiService';
 import Header from './components/Header';
-import UrlInputView from './components/UrlInputView';
+import CoursesPage from './components/UrlInputView';
 import PlayerSection from './components/PlayerSection';
 import NotesPanel from './components/NotesPanel';
+import Modal from './components/Modal';
 import { motion, AnimatePresence } from 'framer-motion';
+import PdfView from './components/PdfView';
 
 const App: React.FC = () => {
   const [theme, setTheme] = useLocalStorage<Theme>('studytube-theme', 'light');
@@ -16,8 +19,8 @@ const App: React.FC = () => {
   const [history, setHistory] = useLocalStorage<HistoryItem[]>('studytube-history', []);
   const [videoSessions, setVideoSessions] = useLocalStorage<Record<string, VideoSession>>('studytube-video-sessions', {});
 
-  const [timestamps, setTimestamps] = useState<Timestamp[]>([]);
   const [insertedLinks, setInsertedLinks] = useState<InsertedLink[]>([]);
+  const [timestampedNotes, setTimestampedNotes] = useState<TimestampedNote[]>([]);
   const [videoTitle, setVideoTitle] = useState('Video Title Placeholder');
   
   const [player, setPlayer] = useState<YT.Player | null>(null);
@@ -34,12 +37,33 @@ const App: React.FC = () => {
   ]);
   const [chat, setChat] = useState<Chat | null>(null);
   const [isBotTyping, setIsBotTyping] = useState(false);
-  const [activeNoteTab, setActiveNoteTab] = useState('Highlights');
-  const [isFocusMode, setIsFocusMode] = useState(false);
-  const [pdfFileUrl, setPdfFileUrl] = useState<string | null>(null);
+  const [activeNoteTab, setActiveNoteTab] = useState('Notelink');
   
+  // Quiz State
+  const [quiz, setQuiz] = useState<QuizItem[] | null>(null);
+  const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
+  const [quizError, setQuizError] = useState<string | null>(null);
+  const [userAnswers, setUserAnswers] = useState<Record<number, string>>({});
+  const [quizResult, setQuizResult] = useState<{score: number; total: number} | null>(null);
+
+  // Link Modal State
+  const [linkModalUrl, setLinkModalUrl] = useState<string | null>(null);
+
+  // PDF State
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+
   const previousVideoIdRef = useRef<string | null>(null);
-  const pdfUrlRef = useRef<string | null>(null);
+
+  const pdfFileUrl = useMemo(() => (pdfFile ? URL.createObjectURL(pdfFile) : null), [pdfFile]);
+
+  useEffect(() => {
+    // Clean up object URL on component unmount or when file changes
+    return () => {
+      if (pdfFileUrl) {
+        URL.revokeObjectURL(pdfFileUrl);
+      }
+    };
+  }, [pdfFileUrl]);
 
 
   useEffect(() => {
@@ -49,32 +73,11 @@ const App: React.FC = () => {
       document.documentElement.classList.remove('dark');
     }
   }, [theme]);
-  
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && isFocusMode) {
-        setIsFocusMode(false);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isFocusMode]);
 
   useEffect(() => {
     setChat(getGeminiChat());
   }, []);
   
-  // Cleanup object URL on component unmount
-  useEffect(() => {
-    return () => {
-      if (pdfUrlRef.current) {
-        URL.revokeObjectURL(pdfUrlRef.current);
-      }
-    };
-  }, []);
-
   const toggleTheme = () => {
     setTheme(prevTheme => (prevTheme === 'light' ? 'dark' : 'light'));
   };
@@ -98,14 +101,21 @@ const App: React.FC = () => {
     return '';
   }, [loadedVideoUrl]);
 
+  const resetQuiz = useCallback(() => {
+    setQuiz(null);
+    setUserAnswers({});
+    setQuizResult(null);
+    setQuizError(null);
+  }, []);
+
   useEffect(() => {
     const previousVideoId = previousVideoIdRef.current;
     
     // Save previous session if there was one
     if (previousVideoId && previousVideoId !== videoId) {
       const sessionToSave: VideoSession = {
-        timestamps,
         insertedLinks,
+        timestampedNotes,
         watchedSeconds: Array.from(playerState.watchedSeconds),
         currentTime: playerState.currentTime,
       };
@@ -118,8 +128,8 @@ const App: React.FC = () => {
     // Load new session
     const newSession = videoId ? videoSessions[videoId] : null;
     if (newSession) {
-      setTimestamps(newSession.timestamps);
       setInsertedLinks(newSession.insertedLinks);
+      setTimestampedNotes(newSession.timestampedNotes || []); // Handle old sessions
       setPlayerState(prev => ({
         ...prev,
         currentTime: newSession.currentTime,
@@ -130,8 +140,8 @@ const App: React.FC = () => {
       }));
     } else {
       // Or reset if no session found
-      setTimestamps([]);
       setInsertedLinks([]);
+      setTimestampedNotes([]);
       setPlayerState({
         currentTime: 0,
         duration: 0,
@@ -141,15 +151,16 @@ const App: React.FC = () => {
       });
     }
 
+    resetQuiz();
     previousVideoIdRef.current = videoId;
-  }, [videoId, setVideoSessions]);
+  }, [videoId, setVideoSessions, resetQuiz]);
 
   useEffect(() => {
     const handleBeforeUnload = () => {
       if (videoId) {
         const sessionToSave: VideoSession = {
-          timestamps,
           insertedLinks,
+          timestampedNotes,
           watchedSeconds: Array.from(playerState.watchedSeconds),
           currentTime: playerState.currentTime,
         };
@@ -163,7 +174,7 @@ const App: React.FC = () => {
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
-  }, [videoId, timestamps, insertedLinks, playerState]);
+  }, [videoId, insertedLinks, playerState, timestampedNotes]);
   
   const addToHistory = useCallback(async (url: string) => {
     const existingItem = history.find(item => item.url === url);
@@ -243,27 +254,65 @@ const App: React.FC = () => {
     }
   };
   
-  const handlePdfUpload = (file: File) => {
-    if (pdfUrlRef.current) {
-      URL.revokeObjectURL(pdfUrlRef.current);
+  const handleGenerateQuiz = async () => {
+    if (!videoTitle) return;
+    setIsGeneratingQuiz(true);
+    resetQuiz();
+    try {
+      const generatedQuiz = await generateQuiz(videoTitle, timestampedNotes);
+      setQuiz(generatedQuiz);
+    } catch (error: any) {
+      console.error(error);
+      setQuizError(error.message || 'An unknown error occurred.');
+    } finally {
+      setIsGeneratingQuiz(false);
     }
-    
-    const url = URL.createObjectURL(file);
-    setPdfFileUrl(url);
-    pdfUrlRef.current = url;
-    setActiveNoteTab('PDF');
   };
 
-  const handlePdfClear = () => {
-    if (pdfUrlRef.current) {
-      URL.revokeObjectURL(pdfUrlRef.current);
-    }
-    setPdfFileUrl(null);
-    pdfUrlRef.current = null;
+  const handleAnswerChange = (questionIndex: number, answer: string) => {
+    setUserAnswers(prev => ({ ...prev, [questionIndex]: answer }));
+    setQuizResult(null); // Reset result if user changes an answer
   };
+
+  const handleCheckAnswers = () => {
+    if (!quiz) return;
+    let score = 0;
+    quiz.forEach((item, index) => {
+      if (userAnswers[index] === item.correctAnswer) {
+        score++;
+      }
+    });
+    setQuizResult({ score, total: quiz.length });
+    setPoints(p => p + score * 2); // Award 2 points for each correct answer
+  };
+  
+  const handleLinkTrigger = useCallback((url: string) => {
+    setLinkModalUrl(url);
+  }, []);
+
+  const handleCloseLinkModal = () => {
+    setLinkModalUrl(null);
+    player?.playVideo?.();
+  };
+
+  const handleOpenLink = () => {
+    if (linkModalUrl) {
+      window.open(linkModalUrl, '_blank');
+    }
+    handleCloseLinkModal();
+  };
+
 
   const seekTo = (time: number) => {
     player?.seekTo(time, true);
+  };
+
+  const handlePdfUpload = (file: File) => {
+    setPdfFile(file);
+  };
+
+  const handlePdfClear = () => {
+    setPdfFile(null);
   };
 
   return (
@@ -271,8 +320,7 @@ const App: React.FC = () => {
       <Header 
         history={history}
         onLoadVideo={loadVideo}
-        isFocusMode={isFocusMode}
-        onToggleFocusMode={() => setIsFocusMode(p => !p)}
+        onGoHome={() => loadVideo('')}
         theme={theme}
         onToggleTheme={toggleTheme}
       />
@@ -280,12 +328,12 @@ const App: React.FC = () => {
         <AnimatePresence mode="wait">
          {!videoId ? (
             <motion.div
-              key="url-input"
+              key="courses-page"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
             >
-              <UrlInputView onLoadVideo={loadVideo} />
+              <CoursesPage onLoadVideo={loadVideo} />
             </motion.div>
          ) : (
             <motion.div
@@ -294,7 +342,7 @@ const App: React.FC = () => {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.5 }}
-              className="grid grid-cols-1 lg:grid-cols-3 gap-6"
+              className={`grid grid-cols-1 ${pdfFileUrl ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-6`}
             >
                 <div className="lg:col-span-2">
                     <PlayerSection 
@@ -304,13 +352,34 @@ const App: React.FC = () => {
                         onPlayerReady={onPlayerReady}
                         onProgress={handleProgress}
                         insertedLinks={insertedLinks}
-                        onHighlightClick={() => setActiveNoteTab('Highlights')}
+                        onLinkTrigger={handleLinkTrigger}
                     />
                 </div>
+                <AnimatePresence>
+                  {pdfFileUrl && (
+                    <motion.div 
+                      className="lg:col-span-1 max-h-[calc(100vh-120px)]"
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 20, transition: { duration: 0.2 } }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 h-full flex flex-col">
+                        <PdfView
+                          pdfFileUrl={pdfFileUrl}
+                          onPdfUpload={handlePdfUpload}
+                          onPdfClear={handlePdfClear}
+                        />
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
                 <div className="lg:col-span-1 max-h-[calc(100vh-120px)]">
                     <NotesPanel 
-                        timestamps={timestamps}
-                        setTimestamps={setTimestamps}
+                        insertedLinks={insertedLinks}
+                        setInsertedLinks={setInsertedLinks}
+                        timestampedNotes={timestampedNotes}
+                        setTimestampedNotes={setTimestampedNotes}
                         onTimestampClick={seekTo}
                         currentTime={playerState.currentTime}
                         activeTab={activeNoteTab}
@@ -318,15 +387,50 @@ const App: React.FC = () => {
                         messages={messages}
                         onSendMessage={handleSendMessage}
                         isBotTyping={isBotTyping}
-                        pdfFileUrl={pdfFileUrl}
-                        onPdfUpload={handlePdfUpload}
-                        onPdfClear={handlePdfClear}
+                        quiz={quiz}
+                        setQuiz={setQuiz}
+                        isGeneratingQuiz={isGeneratingQuiz}
+                        quizError={quizError}
+                        userAnswers={userAnswers}
+                        quizResult={quizResult}
+                        onGenerateQuiz={handleGenerateQuiz}
+                        onAnswerChange={handleAnswerChange}
+                        onCheckAnswers={handleCheckAnswers}
+                        onResetQuiz={resetQuiz}
                     />
                 </div>
             </motion.div>
          )}
          </AnimatePresence>
       </main>
+      <Modal
+        isOpen={!!linkModalUrl}
+        onClose={handleCloseLinkModal}
+        title="External Link"
+        footer={
+            <>
+                <button
+                  onClick={handleCloseLinkModal}
+                  className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 dark:bg-gray-700 dark:text-gray-300 dark:border-gray-500 dark:hover:bg-gray-600 dark:focus:ring-offset-gray-800 transition-colors"
+                >
+                  Continue Video
+                </button>
+                <button
+                  onClick={handleOpenLink}
+                  className="px-4 py-2 text-white bg-cyan-600 rounded-md hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 dark:focus:ring-offset-gray-800 transition-colors"
+                >
+                  Open Link
+                </button>
+            </>
+        }
+      >
+        <p className="text-gray-600 dark:text-gray-400">
+            You've reached a timestamp with an inserted link. What would you like to do?
+        </p>
+        <p className="text-sm text-gray-500 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 p-2 rounded-md truncate mt-2">
+            {linkModalUrl}
+        </p>
+      </Modal>
     </div>
   );
 };

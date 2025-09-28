@@ -8,10 +8,11 @@ interface VideoPlayerProps {
   onPlayerReady: (player: YT.Player) => void;
   onProgress: (state: PlayerState) => void;
   insertedLinks: InsertedLink[];
+  onLinkTrigger: (url: string) => void;
 }
 
-const VideoPlayer: React.FC<VideoPlayerProps> = ({ videoId, onPlayerReady, onProgress, insertedLinks }) => {
-  useYouTubePlayer(videoId, onPlayerReady, onProgress, insertedLinks);
+const VideoPlayer: React.FC<VideoPlayerProps> = ({ videoId, onPlayerReady, onProgress, insertedLinks, onLinkTrigger }) => {
+  useYouTubePlayer(videoId, onPlayerReady, onProgress, insertedLinks, onLinkTrigger);
 
   return (
     <div className="bg-black rounded-md w-full h-full">

@@ -1,25 +1,86 @@
 import React, { useState } from 'react';
-import type { Timestamp } from '../types';
+// FIX: Replaced deprecated 'Timestamp' type with 'TimestampedNote' to align with the application's current data model.
+import type { TimestampedNote, InsertedLink } from '../types';
 import Modal from './Modal';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface TimestampManagerProps {
-  timestamps: Timestamp[];
-  setTimestamps: React.Dispatch<React.SetStateAction<Timestamp[]>>;
+  // FIX: Updated the type from Timestamp[] to TimestampedNote[]
+  timestamps: TimestampedNote[];
+  // FIX: Updated the type from Timestamp[] to TimestampedNote[]
+  setTimestamps: React.Dispatch<React.SetStateAction<TimestampedNote[]>>;
+  insertedLinks: InsertedLink[];
+  setInsertedLinks: React.Dispatch<React.SetStateAction<InsertedLink[]>>;
   onTimestampClick: (time: number) => void;
   currentTime: number;
 }
 
-const TimestampManager: React.FC<TimestampManagerProps> = ({ timestamps, setTimestamps, onTimestampClick, currentTime }) => {
+const TimestampManager: React.FC<TimestampManagerProps> = (props) => {
+  const { 
+    timestamps, setTimestamps, 
+    insertedLinks, setInsertedLinks, 
+    onTimestampClick, currentTime 
+  } = props;
+  
   const [notes, setNotes] = useState('');
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [newDesc, setNewDesc] = useState('');
+  const [newUrl, setNewUrl] = useState('');
+  
+  const formatTime = (totalSeconds: number) => {
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = Math.floor(totalSeconds % 60);
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  const handleAddHighlight = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newDesc.trim()) return;
+    // FIX: Changed to TimestampedNote, adding an 'id' and using 'content' instead of 'description'.
+    const newTimestamp: TimestampedNote = {
+        id: Date.now().toString(),
+        time: Math.floor(currentTime),
+        content: newDesc.trim()
+    };
+    setTimestamps(prev => [...prev, newTimestamp].sort((a, b) => a.time - b.time));
+    setNewDesc('');
+  };
+
+  const handleAddLink = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newUrl) return;
+    
+    let finalUrl = newUrl;
+    if (!/^https?:\/\//i.test(newUrl)) {
+      finalUrl = 'https://' + newUrl;
+    }
+
+    const newLink: InsertedLink = {
+      id: Date.now().toString(),
+      time: Math.floor(currentTime),
+      url: finalUrl,
+      triggered: false,
+    };
+
+    setInsertedLinks(prev => [...prev, newLink].sort((a,b) => a.time - b.time));
+    setNewUrl('');
+  };
+  
+  const removeLink = (id: string) => {
+    setInsertedLinks(prev => prev.filter(link => link.id !== id));
+  };
 
   const executeParse = () => {
     const lines = notes.split('\n');
-    const newTimestamps: Timestamp[] = [];
+    // FIX: Changed to TimestampedNote[]
+    const newTimestamps: TimestampedNote[] = [];
     const regex = /[{\[(\(]\s*(?:(\d{1,2}):)?(\d{1,2}):(\d{2})(?:\.\d+)?\s*[)\]}]/;
 
-    lines.forEach(line => {
+    lines.forEach((line, index) => {
       const match = line.match(regex);
       if (match) {
         const description = line.replace(regex, '').trim();
@@ -30,7 +91,8 @@ const TimestampManager: React.FC<TimestampManagerProps> = ({ timestamps, setTime
 
         const timeInSeconds = (hours * 3600) + (minutes * 60) + seconds;
         
-        newTimestamps.push({ time: timeInSeconds, description });
+        // FIX: Changed to TimestampedNote, adding a unique 'id' and using 'content'.
+        newTimestamps.push({ id: `${timeInSeconds}-${index}`, time: timeInSeconds, content: description });
       }
     });
 
@@ -49,35 +111,32 @@ const TimestampManager: React.FC<TimestampManagerProps> = ({ timestamps, setTime
       executeParse();
     }
   };
-  
-  const formatTime = (totalSeconds: number) => {
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = Math.floor(totalSeconds % 60);
-    if (hours > 0) {
-      return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-    }
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-  };
 
   return (
-    <div className="flex flex-col h-full p-1">
-      <div>
-        <textarea
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          placeholder="Paste notes, e.g., [01:23] or (1:15:30) Topic."
-          className="w-full h-24 p-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md resize-none focus:ring-2 focus:ring-cyan-500 focus:outline-none transition-colors"
-        />
-        <button
-          onClick={handleParseClick}
-          className="mt-2 w-full px-4 py-2 bg-cyan-600 text-white font-semibold rounded-md hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 dark:focus:ring-offset-gray-800 disabled:bg-cyan-400 dark:disabled:bg-cyan-800 disabled:cursor-not-allowed transition-all active:scale-95"
-          disabled={!notes.trim()}
-        >
-          Parse Highlights
-        </button>
+    <div className="flex flex-col h-full">
+      <div className="p-3 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+        <form onSubmit={handleAddHighlight}>
+          <input
+            type="text"
+            value={newDesc}
+            onChange={(e) => setNewDesc(e.target.value)}
+            placeholder={`Add highlight at ${formatTime(currentTime)}...`}
+            className="w-full p-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-cyan-500 focus:outline-none transition-colors"
+          />
+        </form>
+         <form onSubmit={handleAddLink} className="mt-3">
+          <input
+            type="text"
+            value={newUrl}
+            onChange={(e) => setNewUrl(e.target.value)}
+            placeholder={`Add link at ${formatTime(currentTime)}...`}
+            className="w-full p-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-cyan-500 focus:outline-none transition-colors"
+          />
+        </form>
       </div>
-      <div className="mt-4 flex-grow overflow-y-auto pr-2 min-h-0">
+
+      <div className="flex-grow overflow-y-auto pr-2 p-3 min-h-0">
+        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Highlights</h3>
         {timestamps.length > 0 ? (
           <motion.ul layout className="space-y-2">
             <AnimatePresence>
@@ -85,7 +144,8 @@ const TimestampManager: React.FC<TimestampManagerProps> = ({ timestamps, setTime
                const isActive = currentTime >= ts.time && (timestamps[index+1] ? currentTime < timestamps[index+1].time : true);
               return (
               <motion.li 
-                key={`${ts.time}-${ts.description}`}
+                // FIX: Used 'id' for a more reliable key.
+                key={ts.id}
                 layout
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -99,15 +159,68 @@ const TimestampManager: React.FC<TimestampManagerProps> = ({ timestamps, setTime
                   <span className="font-mono font-semibold text-cyan-600 dark:text-cyan-400 mr-3">
                     {formatTime(ts.time)}
                   </span>
-                  <span className="text-gray-800 dark:text-gray-200">{ts.description}</span>
+                  {/* FIX: Changed ts.description to ts.content */}
+                  <span className="text-gray-800 dark:text-gray-200">{ts.content}</span>
                 </button>
               </motion.li>
             )})}
             </AnimatePresence>
           </motion.ul>
         ) : (
-          <p className="text-center text-gray-500 mt-4">No highlights yet. Paste notes with timestamps and click "Parse Highlights".</p>
+          <div className="text-center text-gray-500 my-4 px-4 text-xs">
+            <p>No highlights yet. Use the form above to add notes as you watch.</p>
+          </div>
         )}
+        
+        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2 mt-4">Inserted Links</h3>
+        {insertedLinks.length > 0 ? (
+            <motion.ul layout className="space-y-2">
+            <AnimatePresence>
+            {insertedLinks.map((link) => (
+              <motion.li 
+                key={link.id} 
+                layout
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.2 }}
+                className="flex items-center justify-between p-3 bg-gray-100 dark:bg-gray-800/50 rounded-md text-sm"
+              >
+                <div className="flex-1 overflow-hidden">
+                   <span className="font-mono font-semibold text-cyan-600 dark:text-cyan-400 mr-3">
+                    {formatTime(link.time)}
+                  </span>
+                  <a href={link.url} target="_blank" rel="noopener noreferrer" className="truncate hover:underline text-gray-800 dark:text-gray-200">
+                    {link.url}
+                  </a>
+                </div>
+                <button onClick={() => removeLink(link.id)} className="text-red-500 hover:text-red-700 ml-2 p-1 rounded-full transition-colors text-lg leading-none">&times;</button>
+              </motion.li>
+            ))}
+            </AnimatePresence>
+          </motion.ul>
+        ) : (
+           <div className="text-center text-gray-500 my-4 px-4 text-xs">
+            <p>No links inserted. Use the form above to add links at specific times.</p>
+          </div>
+        )}
+      </div>
+
+      <div className="p-3 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
+        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Bulk Add Highlights from Notes</h3>
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Paste notes, e.g., [01:23] or (1:15:30) Topic."
+          className="w-full h-24 p-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md resize-none focus:ring-2 focus:ring-cyan-500 focus:outline-none transition-colors"
+        />
+        <button
+          onClick={handleParseClick}
+          className="mt-2 w-full px-4 py-2 bg-gray-500 text-white font-semibold rounded-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400 dark:focus:ring-offset-gray-800 disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed transition-all active:scale-95"
+          disabled={!notes.trim()}
+        >
+          Parse Notes
+        </button>
       </div>
 
       <Modal

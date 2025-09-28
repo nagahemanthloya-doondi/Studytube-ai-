@@ -1,7 +1,3 @@
-export interface Timestamp {
-  time: number;
-  description: string;
-}
 
 export interface InsertedLink {
   id: string;
@@ -31,11 +27,69 @@ export interface HistoryItem {
   title: string;
 }
 
+export interface TimestampedNote {
+  id: string;
+  time: number;
+  content: string;
+}
+
 export interface VideoSession {
-  timestamps: Timestamp[];
   insertedLinks: InsertedLink[];
   watchedSeconds: number[];
   currentTime: number;
+  timestampedNotes: TimestampedNote[];
+}
+
+export interface QuizItem {
+  question: string;
+  options: string[];
+  correctAnswer: string;
+}
+
+export interface CourseFile {
+  id: string;
+  name: string;
+  type: 'pdf' | 'pptx' | 'docx' | 'other';
+  mimeType: string;
+  dataUrl: string;
+}
+
+export interface TodoItem {
+  id: string;
+  text: string;
+  completed: boolean;
+}
+
+export interface CourseLink {
+  id: string;
+  title: string;
+  url: string;
+}
+
+export interface Flashcard {
+  id: string;
+  front: string;
+  back: string;
+}
+
+export interface StudySet {
+  id: string;
+  name: string;
+  flashcards: Flashcard[];
+}
+
+export interface Course {
+  id: string;
+  name: string;
+  code: string;
+  instructor: string;
+  schedule: string;
+  location: string;
+  color: string;
+  files: CourseFile[];
+  todos: TodoItem[];
+  links: CourseLink[];
+  studySets: StudySet[];
 }
 
 
@@ -82,6 +136,7 @@ declare global {
       getDuration(): number;
       getCurrentTime(): number;
       pauseVideo(): void;
+      playVideo(): void;
       seekTo(seconds: number, allowSeekAhead: boolean): void;
       getPlayerState(): PlayerState;
     }

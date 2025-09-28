@@ -6,7 +6,8 @@ export const useYouTubePlayer = (
   videoId: string,
   onPlayerReady: (player: YT.Player) => void,
   onProgress: (state: PlayerState) => void,
-  insertedLinks: InsertedLink[]
+  insertedLinks: InsertedLink[],
+  onLinkTrigger: (url: string) => void
 ) => {
   const playerRef = useRef<YT.Player | null>(null);
   const progressIntervalRef = useRef<number | null>(null);
@@ -112,9 +113,9 @@ export const useYouTubePlayer = (
 
         // Check for inserted links
         insertedLinks.forEach(link => {
-            if (!link.triggered && currentTime >= link.time && currentTime < link.time + 1) {
+            if (!link.triggered && currentTime >= link.time && currentTime < link.time + 1.5) {
                 player.pauseVideo();
-                window.open(link.url, '_blank');
+                onLinkTrigger(link.url);
                 link.triggered = true; // Mark as triggered to prevent re-opening
             }
         });

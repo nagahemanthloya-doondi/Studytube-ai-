@@ -1,3 +1,4 @@
+
 import React, { useRef } from 'react';
 import { UploadIcon } from './icons/UploadIcon';
 
@@ -32,14 +33,24 @@ const PdfView: React.FC<PdfViewProps> = ({ pdfFileUrl, onPdfUpload, onPdfClear }
                 Clear PDF
             </button>
         </div>
-        <div className="flex-grow min-h-0">
-          <iframe 
-            src={pdfFileUrl} 
-            title="PDF Viewer" 
+        <div className="flex-grow min-h-0 bg-gray-200 dark:bg-gray-800">
+          <object 
+            data={pdfFileUrl} 
+            type="application/pdf"
             width="100%" 
             height="100%" 
-            style={{ border: 'none' }} 
-          />
+          >
+            <div className="flex flex-col items-center justify-center h-full text-center p-4">
+                <p className="text-gray-700 dark:text-gray-300 mb-4">Your browser does not support embedding PDFs.</p>
+                <a 
+                    href={pdfFileUrl} 
+                    download
+                    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-cyan-600 hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500"
+                >
+                    Download PDF
+                </a>
+            </div>
+          </object>
         </div>
       </div>
     );

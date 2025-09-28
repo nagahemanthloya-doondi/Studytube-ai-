@@ -1,6 +1,6 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { HistoryIcon } from './icons/HistoryIcon';
-import { FocusIcon } from './icons/FocusIcon';
 import { MoonIcon } from './icons/MoonIcon';
 import { SunIcon } from './icons/SunIcon';
 import type { Theme, HistoryItem } from '../types';
@@ -9,8 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 interface HeaderProps {
   history: HistoryItem[];
   onLoadVideo: (url: string) => void;
-  isFocusMode: boolean;
-  onToggleFocusMode: () => void;
+  onGoHome: () => void;
   theme: Theme;
   onToggleTheme: () => void;
 }
@@ -21,7 +20,27 @@ const itemVariants = {
   exit: { opacity: 0, x: -10 },
 };
 
-const Header: React.FC<HeaderProps> = ({ history, onLoadVideo, isFocusMode, onToggleFocusMode, theme, onToggleTheme }) => {
+const CoursesIcon: React.FC = () => (
+    <svg 
+        xmlns="http://www.w3.org/2000/svg" 
+        width="16" 
+        height="16" 
+        viewBox="0 0 24 24" 
+        fill="none" 
+        stroke="currentColor" 
+        strokeWidth="2" 
+        strokeLinecap="round" 
+        strokeLinejoin="round"
+    >
+        <rect x="3" y="3" width="7" height="7"></rect>
+        <rect x="14" y="3" width="7" height="7"></rect>
+        <rect x="3" y="14" width="7" height="7"></rect>
+        <rect x="14" y="14" width="7" height="7"></rect>
+    </svg>
+);
+
+
+const Header: React.FC<HeaderProps> = ({ history, onLoadVideo, onGoHome, theme, onToggleTheme }) => {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const historyRef = useRef<HTMLDivElement>(null);
 
@@ -43,12 +62,15 @@ const Header: React.FC<HeaderProps> = ({ history, onLoadVideo, isFocusMode, onTo
   return (
     <header className="bg-white dark:bg-gray-900 shadow-sm border-b border-gray-200 dark:border-gray-800 relative z-10">
       <div className="container mx-auto px-4 lg:px-6 py-3 flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-200">
+        <button 
+          onClick={onGoHome} 
+          className="text-2xl font-bold text-gray-800 dark:text-gray-200 transition-colors hover:text-cyan-600 dark:hover:text-cyan-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 rounded-md -ml-2 p-1"
+          aria-label="Go to homepage"
+        >
           StudyTube
-        </h1>
+        </button>
         <div className="flex items-center gap-2">
           <AnimatePresence>
-          {!isFocusMode && (
             <motion.div
                 key="history-button"
                 variants={itemVariants}
@@ -93,16 +115,14 @@ const Header: React.FC<HeaderProps> = ({ history, onLoadVideo, isFocusMode, onTo
               )}
               </AnimatePresence>
             </motion.div>
-          )}
           </AnimatePresence>
           <button 
-            onClick={onToggleFocusMode}
+            onClick={onGoHome}
             className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 dark:focus:ring-offset-gray-900 transition-colors"
           >
-            <FocusIcon /> {isFocusMode ? 'Exit' : 'Focus'}
+            <CoursesIcon /> Courses
           </button>
           <AnimatePresence>
-          {!isFocusMode && (
             <motion.div
               key="theme-toggle"
               variants={itemVariants}
@@ -119,7 +139,6 @@ const Header: React.FC<HeaderProps> = ({ history, onLoadVideo, isFocusMode, onTo
                   {theme === 'light' ? <MoonIcon /> : <SunIcon />}
               </button>
             </motion.div>
-          )}
           </AnimatePresence>
         </div>
       </div>

@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 
 export function useLocalStorage<T,>(key: string, initialValue: T): [T, React.Dispatch<React.SetStateAction<T>>] {
   const [storedValue, setStoredValue] = useState<T>(() => {
@@ -7,6 +6,7 @@ export function useLocalStorage<T,>(key: string, initialValue: T): [T, React.Dis
       return initialValue;
     }
     try {
+      // FIX: Import React to make the React namespace available for types like React.Dispatch.
       const item = window.localStorage.getItem(key);
       return item ? JSON.parse(item) : initialValue;
     } catch (error) {
