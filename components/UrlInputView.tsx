@@ -1,45 +1,17 @@
+
+
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import type { Course, CourseFile, TodoItem, CourseLink, StudySet, Flashcard } from '../types';
+import type { Course, CourseFile, TodoItem, CourseLink, StudySet, Flashcard, ScheduleTime, Day } from '../types';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { motion, AnimatePresence } from 'framer-motion';
 import Modal from './Modal';
-
-// --- MOCK DATA ---
-const MOCK_COURSES_DATA: Course[] = [
-    { id: '1', name: 'ARTS', code: 'ART 101', instructor: 'Prof. Monet', schedule: 'TUE FRI | 10:00 AM - 11:30 AM', location: 'Fine Arts 203', color: '#fecaca', files: [], todos: [], links: [], studySets: [] },
-    { id: '2', name: 'BIOLOGY', code: 'BIO 110', instructor: 'Prof. Darwin', schedule: 'MON WED | 01:00 PM - 02:30 PM', location: 'Science Hall 101', color: '#bbf7d0', files: [], todos: [], links: [], studySets: [] },
-    { id: '3', name: 'CALCULUS', code: 'MATH 241', instructor: 'Prof. Newton', schedule: 'TUE THU | 08:00 AM - 09:30 AM', location: 'Math Building 314', color: '#fef08a', files: [], todos: [], links: [], studySets: [] },
-    { id: '4', name: 'CMSC', code: 'CMSC 141', instructor: 'Prof. Lalisa', schedule: 'MON THU | 07:30 AM - 09:00 AM', location: 'AS 123', color: '#bfdbfe', 
-      files: [],
-      todos: [
-        { id: 't1', text: 'Finish project proposal', completed: false },
-        { id: 't2', text: 'Study for quiz', completed: true },
-      ],
-      links: [
-        { id: 'l1', title: 'Course Syllabus', url: 'https://example.com/syllabus' }
-      ],
-      studySets: [
-        { id: 'ss1', name: 'Chapter 1 Vocab', flashcards: [
-            { id: 'fc1', front: 'Automata', back: 'An abstract self-propelled computing device.'},
-            { id: 'fc2', front: 'Turing Machine', back: 'A mathematical model of computation.'}
-        ]}
-      ]
-    },
-    { id: '5', name: 'ENGLISH', code: 'ENGL 101', instructor: 'Prof. Shakespeare', schedule: 'WED FRI | 11:00 AM - 12:30 PM', location: 'Main Hall 221', color: '#e9d5ff', files: [], todos: [], links: [], studySets: [] },
-    { id: '6', name: 'PHILOSOPHY', code: 'PHIL 100', instructor: 'Prof. Plato', schedule: 'TUE | 04:00 PM - 07:00 PM', location: 'Humanities 105', color: '#d1d5db', files: [], todos: [], links: [], studySets: [] },
-    { id: '7', name: 'RESEARCH', code: 'RSCH 299', instructor: 'Prof. Curie', schedule: 'FRI | 09:00 AM - 12:00 PM', location: 'Library 4th Floor', color: '#fed7aa', files: [], todos: [], links: [], studySets: [] },
-];
-
-const COURSE_COLORS = ['#fecaca', '#bbf7d0', '#fef08a', '#bfdbfe', '#e9d5ff', '#d1d5db', '#fed7aa', '#fbcfe8', '#a5f3fd', '#d5d4d4'];
-const getRandomColor = () => COURSE_COLORS[Math.floor(Math.random() * COURSE_COLORS.length)];
-
 
 // --- ICONS ---
 const PlusIcon: React.FC<{className?: string}> = ({className}) => (
     <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
 );
-const BackArrowIcon: React.FC = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+const BackArrowIcon: React.FC<{className?: string}> = ({className}) => (
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
 );
 const ComputerIcon: React.FC = () => (
     <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
@@ -50,6 +22,10 @@ const MoreIcon: React.FC<{className?: string}> = ({className}) => (
 const TrashIcon: React.FC<{className?: string}> = ({className}) => (
     <svg className={className} xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
 )
+const FolderIcon: React.FC<{className?: string}> = ({className}) => (
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"></path></svg>
+);
+
 const FileIcon: React.FC<{ type: CourseFile['type'] }> = ({ type }) => {
     const styles = {
         pdf: 'text-red-500',
@@ -59,6 +35,9 @@ const FileIcon: React.FC<{ type: CourseFile['type'] }> = ({ type }) => {
     };
     return <svg className={`w-6 h-6 ${styles[type] || styles.other}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
 };
+
+const COURSE_COLORS = ['#f8fafc', '#fecaca', '#bbf7d0', '#bfdbfe', '#e9d5ff', '#fed7aa', '#fde68a'];
+const DAYS: Day[] = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 
 // --- FLASHCARD PRACTICE MODAL ---
 interface FlashcardPracticeModalProps {
@@ -198,14 +177,23 @@ const UrlInputView: React.FC<UrlInputViewProps> = ({ onLoadVideo }) => {
 // --- TABS ---
 
 const TodoTab: React.FC<{ course: Course, onCourseUpdate: (updatedCourse: Course) => void }> = ({ course, onCourseUpdate }) => {
-    const [newTodo, setNewTodo] = useState('');
+    const [newTodoText, setNewTodoText] = useState('');
+    const [newTodoDueDate, setNewTodoDueDate] = useState('');
     const sortedTodos = [...course.todos].sort((a,b) => a.completed === b.completed ? 0 : a.completed ? 1 : -1);
 
     const addTodo = () => {
-        if (!newTodo.trim()) return;
-        const updatedCourse = { ...course, todos: [...course.todos, { id: Date.now().toString(), text: newTodo, completed: false }] };
+        if (!newTodoText.trim()) return;
+        const newTodo: TodoItem = { 
+            id: Date.now().toString(), 
+            text: newTodoText, 
+            completed: false,
+            dueDate: newTodoDueDate,
+            subject: course.name
+        };
+        const updatedCourse = { ...course, todos: [...course.todos, newTodo] };
         onCourseUpdate(updatedCourse);
-        setNewTodo('');
+        setNewTodoText('');
+        setNewTodoDueDate('');
     };
     const toggleTodo = (id: string) => {
         const updatedCourse = { ...course, todos: course.todos.map(t => t.id === id ? { ...t, completed: !t.completed } : t) };
@@ -227,15 +215,19 @@ const TodoTab: React.FC<{ course: Course, onCourseUpdate: (updatedCourse: Course
                     <button onClick={clearCompleted} className="px-3 py-1 text-xs font-semibold text-red-600 bg-red-100 dark:bg-red-900/50 dark:text-red-300 border border-red-200 dark:border-red-800 rounded-md hover:bg-red-200 dark:hover:bg-red-900">Clear Completed</button>
                 )}
             </div>
-            <div className="flex gap-2 mb-4">
-                <input value={newTodo} onChange={e => setNewTodo(e.target.value)} placeholder="Add a to-do item..." className="flex-grow p-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md"/>
-                <button onClick={addTodo} className="px-4 py-2 text-sm font-semibold bg-black text-white dark:bg-white dark:text-black rounded-md">+ Add</button>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4">
+                <input value={newTodoText} onChange={e => setNewTodoText(e.target.value)} placeholder="Add a to-do item..." className="p-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md"/>
+                <input type="datetime-local" value={newTodoDueDate} onChange={e => setNewTodoDueDate(e.target.value)} className="p-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md"/>
             </div>
-            <ul className="space-y-2">
+            <button onClick={addTodo} className="w-full px-4 py-2 text-sm font-semibold bg-black text-white dark:bg-white dark:text-black rounded-md">+ Add To-do</button>
+            <ul className="space-y-2 mt-4">
                 {sortedTodos.map(todo => (
                     <li key={todo.id} className="flex items-center p-3 border border-gray-200 dark:border-gray-700 rounded-md">
                         <input type="checkbox" checked={todo.completed} onChange={() => toggleTodo(todo.id)} className="h-5 w-5 rounded text-cyan-600 focus:ring-cyan-500"/>
-                        <span className={`ml-3 flex-grow ${todo.completed ? 'line-through text-gray-500' : ''}`}>{todo.text}</span>
+                        <div className={`ml-3 flex-grow ${todo.completed ? 'line-through text-gray-500' : ''}`}>
+                            <p>{todo.text}</p>
+                            {todo.dueDate && <p className="text-xs text-gray-400">{new Date(todo.dueDate).toLocaleString()}</p>}
+                        </div>
                         <button onClick={() => deleteTodo(todo.id)}><TrashIcon className="text-gray-400 hover:text-red-500"/></button>
                     </li>
                 ))}
@@ -267,7 +259,6 @@ const FilesTab: React.FC<{ course: Course, onCourseUpdate: (updatedCourse: Cours
         
         setIsUploading(true);
 
-        // FIX: Explicitly type the 'file' argument as 'File' to resolve TypeScript errors.
         const newFilesPromises = Array.from(files).map(async (file: File) => {
             const extension = file.name.split('.').pop()?.toLowerCase();
             let type: CourseFile['type'] = 'other';
@@ -519,13 +510,12 @@ const CourseDetailView: React.FC<CourseDetailViewProps> = ({ course, onBack, onU
                     {isEditing ? (
                         <>
                             <input value={editedCourse.instructor} onChange={e => setEditedCourse({...editedCourse, instructor: e.target.value})} placeholder="Instructor" className="bg-transparent border-b p-1"/>
-                            <input value={editedCourse.schedule} onChange={e => setEditedCourse({...editedCourse, schedule: e.target.value})} placeholder="Schedule" className="bg-transparent border-b p-1"/>
-                            <input value={editedCourse.location} onChange={e => setEditedCourse({...editedCourse, location: e.target.value})} placeholder="Location" className="bg-transparent border-b p-1"/>
+                             <input value={editedCourse.location} onChange={e => setEditedCourse({...editedCourse, location: e.target.value})} placeholder="Location" className="bg-transparent border-b p-1"/>
                         </>
                     ) : (
                         <>
                             <div><span className="font-semibold w-24 inline-block">Instructor:</span> {course.instructor}</div>
-                            <div><span className="font-semibold w-24 inline-block">Schedule:</span> {course.schedule}</div>
+                            <div><span className="font-semibold w-24 inline-block">Schedule:</span> {course.schedules.length > 0 ? 'Scheduled' : 'Not set'}</div>
                             <div><span className="font-semibold w-24 inline-block">Location:</span> {course.location}</div>
                         </>
                     )}
@@ -548,6 +538,133 @@ const CourseDetailView: React.FC<CourseDetailViewProps> = ({ course, onBack, onU
         </div>
     )
 }
+
+// --- NEW COURSE VIEW ---
+const NewCourseView: React.FC<{onSave: (course: Course) => void; onBack: () => void}> = ({ onSave, onBack }) => {
+    const [color, setColor] = useState(COURSE_COLORS[0]);
+    const [name, setName] = useState('');
+    const [instructor, setInstructor] = useState('');
+    const [location, setLocation] = useState('');
+    const [assignSchedules, setAssignSchedules] = useState(false);
+    const [schedules, setSchedules] = useState<ScheduleTime[]>([
+      { id: Date.now().toString(), days: [], startTime: '09:00', endTime: '10:00' }
+    ]);
+    
+    const handleSave = () => {
+        if (!name.trim()) {
+            alert("Please enter a course name.");
+            return;
+        }
+        const newCourse: Course = {
+            id: Date.now().toString(),
+            name,
+            code: name.substring(0,4).toUpperCase(),
+            instructor,
+            location,
+            color,
+            schedules: assignSchedules ? schedules : [],
+            files: [],
+            todos: [],
+            links: [],
+            studySets: [],
+        };
+        onSave(newCourse);
+    };
+
+    const addScheduleTime = () => {
+        setSchedules([...schedules, { id: Date.now().toString(), days: [], startTime: '09:00', endTime: '10:00' }]);
+    };
+    
+    const updateScheduleTime = (id: string, newTime: Partial<ScheduleTime>) => {
+        setSchedules(schedules.map(s => s.id === id ? { ...s, ...newTime } : s));
+    };
+
+    const toggleDay = (scheduleId: string, day: Day) => {
+        const schedule = schedules.find(s => s.id === scheduleId);
+        if (!schedule) return;
+        
+        const newDays = schedule.days.includes(day)
+          ? schedule.days.filter(d => d !== day)
+          : [...schedule.days, day];
+        updateScheduleTime(scheduleId, { days: newDays });
+    };
+
+    return (
+      <div className="w-full max-w-2xl mx-auto">
+        <div className="flex items-center mb-6">
+            <button onClick={onBack} className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
+                <BackArrowIcon className="w-6 h-6"/>
+            </button>
+            <h1 className="text-xl font-bold ml-4">New Course</h1>
+        </div>
+
+        <div className="space-y-6 text-black dark:text-white">
+            <div className="flex justify-center">
+                <div className="w-32 h-32 bg-gray-200 dark:bg-gray-800 rounded-lg flex items-center justify-center">
+                    <FolderIcon className="w-16 h-16 text-gray-400 dark:text-gray-500"/>
+                </div>
+            </div>
+            
+            <div>
+                <label className="text-sm font-medium">Color</label>
+                <div className="flex gap-2 mt-2">
+                    {COURSE_COLORS.map(c => (
+                        <button key={c} onClick={() => setColor(c)} className={`w-8 h-8 rounded-full border-2 ${color === c ? 'border-black dark:border-white' : 'border-transparent'}`} style={{backgroundColor: c}}></button>
+                    ))}
+                    <button className="w-8 h-8 rounded-full border-2 border-gray-300 dark:border-gray-600 flex items-center justify-center"><PlusIcon className="w-5 h-5"/></button>
+                </div>
+            </div>
+
+            <div>
+                <label htmlFor="course-name" className="text-sm font-medium">Course</label>
+                <input id="course-name" type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Enter course name" className="w-full p-3 mt-1 bg-gray-200 dark:bg-gray-800 rounded-lg border-2 border-transparent focus:border-cyan-500 focus:bg-white dark:focus:bg-gray-900 outline-none"/>
+            </div>
+            <div>
+                <label htmlFor="instructor" className="text-sm font-medium">Instructor</label>
+                <input id="instructor" type="text" value={instructor} onChange={e => setInstructor(e.target.value)} placeholder="Enter instructor's name (Optional)" className="w-full p-3 mt-1 bg-gray-200 dark:bg-gray-800 rounded-lg border-2 border-transparent focus:border-cyan-500 focus:bg-white dark:focus:bg-gray-900 outline-none"/>
+            </div>
+            <div>
+                <label htmlFor="location" className="text-sm font-medium">Room Location</label>
+                <input id="location" type="text" value={location} onChange={e => setLocation(e.target.value)} placeholder="Enter room location (Optional)" className="w-full p-3 mt-1 bg-gray-200 dark:bg-gray-800 rounded-lg border-2 border-transparent focus:border-cyan-500 focus:bg-white dark:focus:bg-gray-900 outline-none"/>
+            </div>
+
+            <div className="flex justify-between items-center">
+                <label className="text-sm font-medium">Assign schedules to this course</label>
+                <button onClick={() => setAssignSchedules(!assignSchedules)} className={`w-12 h-6 rounded-full p-1 transition-colors ${assignSchedules ? 'bg-cyan-500' : 'bg-gray-300 dark:bg-gray-700'}`}>
+                    <div className={`w-4 h-4 rounded-full bg-white transform transition-transform ${assignSchedules ? 'translate-x-6' : 'translate-x-0'}`}></div>
+                </button>
+            </div>
+
+            {assignSchedules && (
+                <div className="space-y-4">
+                    {schedules.map((s, index) => (
+                        <div key={s.id} className="p-4 bg-gray-200/50 dark:bg-gray-800/50 rounded-lg">
+                            <p className="font-semibold mb-2">Schedule {index + 1}</p>
+                            <div className="flex justify-between mb-2">
+                                {DAYS.map(day => (
+                                    <button key={day} onClick={() => toggleDay(s.id, day)} className={`px-3 py-1 text-sm font-semibold rounded-md ${s.days.includes(day) ? 'bg-black text-white dark:bg-white dark:text-black' : 'bg-white dark:bg-gray-700'}`}>
+                                        {day}
+                                    </button>
+                                ))}
+                            </div>
+                            <div className="flex gap-2">
+                                <input type="time" value={s.startTime} onChange={e => updateScheduleTime(s.id, {startTime: e.target.value})} className="w-full p-2 bg-white dark:bg-gray-700 rounded-lg text-center" />
+                                <input type="time" value={s.endTime} onChange={e => updateScheduleTime(s.id, {endTime: e.target.value})} className="w-full p-2 bg-white dark:bg-gray-700 rounded-lg text-center"/>
+                            </div>
+                        </div>
+                    ))}
+                     <button onClick={addScheduleTime} className="w-full p-3 bg-gray-200 dark:bg-gray-800 rounded-lg flex items-center justify-center font-semibold">
+                        <PlusIcon className="w-5 h-5 mr-2"/> Add
+                    </button>
+                </div>
+            )}
+            
+            <button onClick={handleSave} className="w-full p-4 bg-gray-300 dark:bg-gray-700 font-bold rounded-lg hover:bg-gray-400 dark:hover:bg-gray-600">Create</button>
+        </div>
+      </div>
+    );
+};
+
 
 // --- COURSES LIST VIEW ---
 interface CourseItemProps {
@@ -597,14 +714,14 @@ interface CoursesListViewProps {
     onLoadVideo: (url: string) => void;
     courses: Course[];
     onSelectCourse: (course: Course) => void;
-    onAddCourse: (name: string) => void;
+    onAddCourse: () => void;
     onRenameCourse: (id: string, newName: string) => void;
     onDeleteCourse: (id: string) => void;
 }
 const CoursesListView: React.FC<CoursesListViewProps> = (props) => {
     const { onLoadVideo, courses, onSelectCourse, onAddCourse, onRenameCourse, onDeleteCourse } = props;
     const [search, setSearch] = useState('');
-    const [modal, setModal] = useState<{type: 'add' | 'rename' | 'delete', course?: Course} | null>(null);
+    const [modal, setModal] = useState<{type: 'rename' | 'delete', course?: Course} | null>(null);
     const [courseName, setCourseName] = useState('');
 
     const filteredCourses = useMemo(() => {
@@ -615,9 +732,6 @@ const CoursesListView: React.FC<CoursesListViewProps> = (props) => {
     }, [courses, search]);
     
     const handleModalSubmit = () => {
-        if (modal?.type === 'add' && courseName) {
-            onAddCourse(courseName);
-        }
         if (modal?.type === 'rename' && modal.course && courseName) {
             onRenameCourse(modal.course.id, courseName);
         }
@@ -650,19 +764,18 @@ const CoursesListView: React.FC<CoursesListViewProps> = (props) => {
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {filteredCourses.map(course => (
                     <CourseItem key={course.id} course={course} onSelectCourse={onSelectCourse} 
-                        // FIX: Explicitly type the argument in the onRename and onDelete callbacks to resolve 'Object is of type unknown' errors.
                         onRename={(c: Course) => { setCourseName(c.name); setModal({ type: 'rename', course: c }); }}
                         onDelete={(c: Course) => setModal({ type: 'delete', course: c })}
                     />
                 ))}
             </div>
-             <button onClick={() => { setCourseName(''); setModal({type: 'add'}) }} className="fixed bottom-8 right-8 w-16 h-16 bg-black text-white dark:bg-white dark:text-black rounded-full shadow-lg flex items-center justify-center hover:scale-105 transition-transform">
+             <button onClick={onAddCourse} className="fixed bottom-24 right-8 w-16 h-16 bg-black text-white dark:bg-white dark:text-black rounded-full shadow-lg flex items-center justify-center hover:scale-105 transition-transform">
                 <PlusIcon />
             </button>
 
             {modal && (
                 <Modal isOpen={!!modal} onClose={() => setModal(null)} title={
-                    modal.type === 'add' ? 'Add New Course' : modal.type === 'rename' ? 'Rename Course' : 'Delete Course'
+                    modal.type === 'rename' ? 'Rename Course' : 'Delete Course'
                 }>
                     {modal.type === 'delete' ? (
                         <p>Are you sure you want to delete the course "<strong>{modal.course?.name}</strong>"? This action cannot be undone.</p>
@@ -672,7 +785,7 @@ const CoursesListView: React.FC<CoursesListViewProps> = (props) => {
                     <div className="flex justify-end gap-2 mt-4">
                         <button onClick={() => setModal(null)} className="px-4 py-2 bg-gray-200 rounded">Cancel</button>
                         <button onClick={handleModalSubmit} className={`px-4 py-2 text-white rounded ${modal.type === 'delete' ? 'bg-red-600' : 'bg-cyan-600'}`}>
-                            {modal.type === 'add' ? 'Create' : modal.type === 'rename' ? 'Save' : 'Delete'}
+                            {modal.type === 'rename' ? 'Save' : 'Delete'}
                         </button>
                     </div>
                 </Modal>
@@ -685,15 +798,17 @@ const CoursesListView: React.FC<CoursesListViewProps> = (props) => {
 // --- MAIN PAGE COMPONENT ---
 interface CoursesPageProps {
   onLoadVideo: (url: string) => void;
+  courses: Course[];
+  setCourses: React.Dispatch<React.SetStateAction<Course[]>>;
 }
 
-const CoursesPage: React.FC<CoursesPageProps> = ({ onLoadVideo }) => {
-    const [courses, setCourses] = useLocalStorage<Course[]>('studytube-courses', MOCK_COURSES_DATA);
+const CoursesPage: React.FC<CoursesPageProps> = ({ onLoadVideo, courses, setCourses }) => {
+    const [viewMode, setViewMode] = useState<'list' | 'detail' | 'create'>('list');
     const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
 
-    const handleAddCourse = (name: string) => {
-        const newCourse: Course = { id: Date.now().toString(), name, code: name.substring(0,4).toUpperCase(), instructor: '', schedule: '', location: '', color: getRandomColor(), files: [], todos: [], links: [], studySets: [] };
+    const handleAddCourse = (newCourse: Course) => {
         setCourses(prev => [...prev, newCourse]);
+        setViewMode('list');
     };
     const handleUpdateCourse = (updatedCourse: Course) => {
         setCourses(prev => prev.map(c => c.id === updatedCourse.id ? updatedCourse : c));
@@ -704,18 +819,25 @@ const CoursesPage: React.FC<CoursesPageProps> = ({ onLoadVideo }) => {
     const handleDeleteCourse = (id: string) => {
         setCourses(prev => prev.filter(c => c.id !== id));
     };
+    
+    const handleSelectCourse = (course: Course) => {
+      setSelectedCourse(course);
+      setViewMode('detail');
+    }
 
-
-    if (selectedCourse) {
-        return <CourseDetailView course={selectedCourse} onBack={() => setSelectedCourse(null)} onUpdateCourse={handleUpdateCourse} onLoadVideo={onLoadVideo} />
+    if (viewMode === 'create') {
+        return <NewCourseView onBack={() => setViewMode('list')} onSave={handleAddCourse} />
+    }
+    
+    if (viewMode === 'detail' && selectedCourse) {
+        return <CourseDetailView course={selectedCourse} onBack={() => setViewMode('list')} onUpdateCourse={handleUpdateCourse} onLoadVideo={onLoadVideo} />
     }
 
     return <CoursesListView 
         onLoadVideo={onLoadVideo} 
         courses={courses} 
-        onSelectCourse={setSelectedCourse}
-        onAddCourse={handleAddCourse}
-        // FIX: Safely handle course renaming by checking if the course exists before updating.
+        onSelectCourse={handleSelectCourse}
+        onAddCourse={() => setViewMode('create')}
         onRenameCourse={(id, newName) => {
             const course = courses.find(c => c.id === id);
             if (course) {

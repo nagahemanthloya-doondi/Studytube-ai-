@@ -1,7 +1,8 @@
 
+
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useLocalStorage } from './hooks/useLocalStorage';
-import type { InsertedLink, Theme, PlayerState, Message, HistoryItem, VideoSession, QuizItem, TimestampedNote, Course } from './types';
+import type { InsertedLink, Theme, PlayerState, Message, HistoryItem, VideoSession, QuizItem, TimestampedNote, Course, Schedule, UserProfile, TodoItem } from './types';
 import { Chat } from '@google/genai';
 import { getGeminiChat, generateQuiz } from './services/geminiService';
 import Header from './components/Header';
@@ -11,6 +12,9 @@ import NotesPanel from './components/NotesPanel';
 import Modal from './components/Modal';
 import { motion, AnimatePresence } from 'framer-motion';
 import PdfView from './components/PdfView';
+import BottomNavBar from './components/BottomNavBar';
+import SchedulePage from './components/SchedulePage';
+import HomePage from './components/HomePage';
 
 const App: React.FC = () => {
   const [theme, setTheme] = useLocalStorage<Theme>('studytube-theme', 'light');
@@ -18,6 +22,21 @@ const App: React.FC = () => {
   const [points, setPoints] = useLocalStorage<number>('studytube-points', 0);
   const [history, setHistory] = useLocalStorage<HistoryItem[]>('studytube-history', []);
   const [videoSessions, setVideoSessions] = useLocalStorage<Record<string, VideoSession>>('studytube-video-sessions', {});
+  const [schedules, setSchedules] = useLocalStorage<Schedule[]>('studytube-schedules', []);
+  const [courses, setCourses] = useLocalStorage<Course[]>('studytube-courses', []);
+  const [profile, setProfile] = useLocalStorage<UserProfile>('studytube-profile', {
+    name: 'Filomena',
+    birthday: '2002-07-20',
+    school: 'UPC',
+    yearLevel: '3RD YEAR',
+    idPictureUrl: 'https://i.imgur.com/example.png', // Placeholder
+    logoUrl: 'logo1',
+    cardColor: '#ffc2d1',
+  });
+  const [homeTodos, setHomeTodos] = useLocalStorage<TodoItem[]>('studytube-home-todos', []);
+  
+  const [activeView, setActiveView] = useState('Home');
+
 
   const [insertedLinks, setInsertedLinks] = useState<InsertedLink[]>([]);
   const [notes, setNotes] = useState<TimestampedNote[]>([]);
@@ -245,6 +264,7 @@ const App: React.FC = () => {
     if (!chat || isBotTyping) return;
     const userMessage: Message = { id: Date.now().toString(), text, sender: 'user' };
     setMessages(prev => [...prev, userMessage]);
+    // FIX: Corrected typo `setIsBotyping` to `setIsBotTyping`.
     setIsBotTyping(true);
     try {
       const response = await chat.sendMessage({ message: text });
@@ -255,6 +275,7 @@ const App: React.FC = () => {
       const errorMessage: Message = { id: Date.now().toString() + '-error', text: 'Sorry, I encountered an error.', sender: 'bot' };
       setMessages(prev => [...prev, errorMessage]);
     } finally {
+      // FIX: Corrected typo `setIsBotyping` to `setIsBotTyping`.
       setIsBotTyping(false);
     }
   };
@@ -330,24 +351,30 @@ const App: React.FC = () => {
   }, [player]);
 
   return (
-    <div className="min-h-screen font-sans text-gray-800 bg-white dark:text-gray-200 dark:bg-gray-950 transition-colors duration-300">
-      <Header 
-        history={history}
-        onLoadVideo={loadVideo}
-        onGoHome={() => loadVideo('')}
-        theme={theme}
-        onToggleTheme={toggleTheme}
-      />
-      <main className="container mx-auto p-4 lg:p-6">
+    <div className="min-h-screen font-sans text-gray-800 bg-gray-50 dark:text-gray-200 dark:bg-black transition-colors duration-300">
+      {videoId && (
+        <Header 
+          history={history}
+          onLoadVideo={loadVideo}
+          onGoHome={() => loadVideo('')}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+        />
+      )}
+      <main className="container mx-auto p-4 lg:px-6 lg:pt-6">
         <AnimatePresence mode="wait">
          {!videoId ? (
             <motion.div
-              key="courses-page"
+              key="main-app-view"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
+              className="pb-24"
             >
-              <CoursesPage onLoadVideo={loadVideo} />
+              {activeView === 'Home' && <HomePage profile={profile} setProfile={setProfile} homeTodos={homeTodos} setHomeTodos={setHomeTodos} courses={courses} setCourses={setCourses} />}
+              {activeView === 'Course' && <CoursesPage onLoadVideo={loadVideo} courses={courses} setCourses={setCourses} />}
+              {activeView === 'Schedule' && <SchedulePage schedules={schedules} setSchedules={setSchedules} courses={courses} />}
+               <BottomNavBar activeView={activeView} setActiveView={setActiveView} />
             </motion.div>
          ) : (
             <motion.div

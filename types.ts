@@ -1,4 +1,5 @@
 
+
 export interface InsertedLink {
   id: string;
   time: number;
@@ -59,6 +60,9 @@ export interface TodoItem {
   id: string;
   text: string;
   completed: boolean;
+  dueDate?: string;
+  subject?: string;
+  courseId?: string; // Internal use for syncing
 }
 
 export interface CourseLink {
@@ -79,18 +83,48 @@ export interface StudySet {
   flashcards: Flashcard[];
 }
 
+export type Day = 'MON' | 'TUE' | 'WED' | 'THU' | 'FRI' | 'SAT' | 'SUN';
+
+export interface ScheduleTime {
+  id: string;
+  days: Day[];
+  startTime: string;
+  endTime: string;
+}
+
+export interface Schedule {
+  id: string;
+  title: string;
+  instructor: string;
+  location: string;
+  color: string;
+  imageUrl?: string;
+  times: ScheduleTime[];
+  courseId?: string;
+}
+
 export interface Course {
   id: string;
   name: string;
   code: string;
   instructor: string;
-  schedule: string;
+  schedules: ScheduleTime[];
   location: string;
   color: string;
   files: CourseFile[];
   todos: TodoItem[];
   links: CourseLink[];
   studySets: StudySet[];
+}
+
+export interface UserProfile {
+  name: string;
+  birthday: string;
+  school: string;
+  yearLevel: string;
+  idPictureUrl?: string;
+  logoUrl?: string;
+  cardColor: string;
 }
 
 
