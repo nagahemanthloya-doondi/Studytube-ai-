@@ -361,7 +361,7 @@ const App: React.FC = () => {
           onToggleTheme={toggleTheme}
         />
       )}
-      <main className="container mx-auto p-4 lg:px-6 lg:pt-6">
+      <main className={videoId ? "w-full p-4 lg:px-6 lg:pt-6" : "container mx-auto p-4 lg:px-6 lg:pt-6"}>
         <AnimatePresence mode="wait">
          {!videoId ? (
             <motion.div
@@ -383,9 +383,9 @@ const App: React.FC = () => {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.5 }}
-              className="grid grid-cols-1 md:grid-cols-5 gap-6"
+              className="grid grid-cols-1 md:grid-cols-5 lg:grid-cols-3 xl:grid-cols-4 gap-6"
             >
-              <div className="md:col-span-3">
+              <div className="md:col-span-3 lg:col-span-2 xl:col-span-3">
                 <PlayerSection 
                   videoId={videoId}
                   videoTitle={videoTitle}
@@ -397,7 +397,7 @@ const App: React.FC = () => {
                 />
               </div>
 
-              <div className="md:col-span-2 flex flex-col gap-6" style={{ maxHeight: 'calc(100vh - 120px)' }}>
+              <div className="md:col-span-2 lg:col-span-1 xl:col-span-1 flex flex-col gap-6" style={{ maxHeight: 'calc(100vh - 120px)' }}>
                 <AnimatePresence>
                   {pdfFileUrl && (
                     <motion.div 

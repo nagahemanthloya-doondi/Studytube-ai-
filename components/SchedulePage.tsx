@@ -32,6 +32,14 @@ const formatMinutesToTime = (totalMinutes: number): string => {
     return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
 };
 
+const formatTime12hr = (timeStr: string): string => {
+    if (!timeStr || !timeStr.includes(':')) return '';
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    const hours12 = hours % 12 || 12; // Convert 0 to 12
+    return `${hours12}:${String(minutes).padStart(2, '0')} ${ampm}`;
+};
+
 
 // --- SUB-COMPONENTS ---
 
@@ -85,18 +93,17 @@ const IPodPlayer: React.FC<{
     );
 };
 
-const WeekView: React.FC<{ schedules: Schedule[]; currentDay: Day; }> = ({ schedules, currentDay }) => {
+const WeekView: React.FC<{ schedules: Schedule[]; currentDay: Day; onDeleteSchedule: (scheduleId: string) => void; }> = ({ schedules, currentDay, onDeleteSchedule }) => {
     const days: Day[] = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
     
-    const { startHour, totalHours, timeLabels } = useMemo(() => {
+    const { startHour, totalHours } = useMemo(() => {
         const allTimes = schedules.flatMap(s => s.times.flatMap(t => [getMinutes(t.startTime), getMinutes(t.endTime)]));
-        const minHour = allTimes.length > 0 ? Math.floor(Math.min(...allTimes) / 60) : 7;
-        const maxHour = allTimes.length > 0 ? Math.ceil(Math.max(...allTimes) / 60) : 18;
+        if (allTimes.length === 0) return { startHour: 7, totalHours: 11 };
+        const minHour = Math.floor(Math.min(...allTimes) / 60);
+        const maxHour = Math.ceil(Math.max(...allTimes) / 60);
         const sh = Math.max(0, minHour - 1);
         const eh = Math.min(24, maxHour + 1);
-        const th = eh - sh;
-        const tl = Array.from({ length: th }, (_, i) => sh + i);
-        return { startHour: sh, totalHours: th, timeLabels: tl };
+        return { startHour: sh, totalHours: eh - sh };
     }, [schedules]);
 
     const timeToPercent = (timeStr: string) => {
@@ -106,13 +113,13 @@ const WeekView: React.FC<{ schedules: Schedule[]; currentDay: Day; }> = ({ sched
     };
 
     const eventsByDay = useMemo(() => {
-        const map = new Map<Day, (Schedule & ScheduleTime)[]>();
+        const map = new Map<Day, (Schedule & ScheduleTime & { scheduleId: string })[]>();
         days.forEach(day => map.set(day, []));
         schedules.forEach(schedule => {
             schedule.times.forEach(time => {
                 time.days.forEach(day => {
                     if (map.has(day)) {
-                        map.get(day)!.push({ ...schedule, ...time });
+                        map.get(day)!.push({ ...schedule, ...time, scheduleId: schedule.id });
                     }
                 });
             });
@@ -123,22 +130,14 @@ const WeekView: React.FC<{ schedules: Schedule[]; currentDay: Day; }> = ({ sched
 
     return (
         <div className="mt-8 w-full max-w-4xl mx-auto">
-            <div className="grid grid-cols-[auto_repeat(7,minmax(0,1fr))] gap-1 sm:gap-2 text-center text-xs font-bold mb-2">
-                <div></div>
+            <div className="grid grid-cols-7 gap-1 sm:gap-2 text-center text-xs font-bold mb-2">
                 {days.map(day => (
                     <div key={day} className={`p-2 rounded-lg ${day === currentDay ? 'bg-yellow-300 text-black' : 'bg-gray-100 dark:bg-gray-800'}`}>
                         {day}
                     </div>
                 ))}
             </div>
-            <div className="grid grid-cols-[auto_repeat(7,minmax(0,1fr))] gap-1 sm:gap-2 h-[500px]">
-                <div className="relative">
-                    {timeLabels.map(hour => (
-                        <div key={hour} style={{ top: `${timeToPercent(`${hour}:00`)}%` }} className="absolute -translate-y-1/2 text-[10px] text-gray-400 pr-2 w-12 text-right">
-                            {hour % 12 === 0 ? 12 : hour % 12}{hour < 12 ? 'AM' : 'PM'}
-                        </div>
-                    ))}
-                </div>
+            <div className="grid grid-cols-7 gap-1 sm:gap-2 h-[500px]">
                 {days.map(day => (
                     <div key={day} className="relative h-full bg-gray-50 dark:bg-gray-900/50 rounded-lg overflow-hidden">
                         {(eventsByDay.get(day) || []).map(event => {
@@ -148,15 +147,28 @@ const WeekView: React.FC<{ schedules: Schedule[]; currentDay: Day; }> = ({ sched
                             return (
                                 <div
                                     key={`${event.id}-${event.startTime}`}
-                                    className="absolute w-[95%] left-[2.5%] p-1 rounded text-[10px] text-white overflow-hidden shadow"
+                                    className="absolute w-[95%] left-[2.5%] p-1.5 rounded text-[10px] text-white overflow-hidden shadow group"
                                     style={{
                                         top: `${top}%`,
-                                        height: `max(15px, ${height}%)`,
+                                        height: `${Math.max(0, height)}%`,
+                                        minHeight: '40px',
                                         backgroundColor: event.color === '#FFFFFF' ? '#06b6d4' : event.color || '#06b6d4',
                                     }}
                                 >
-                                    <p className="font-bold truncate">{event.title}</p>
-                                    <p className="truncate">{event.instructor}</p>
+                                    <div className="flex flex-col h-full">
+                                        <p className="text-white/80 truncate">{formatTime12hr(event.startTime)}</p>
+                                        <p className="font-bold truncate text-xs leading-tight my-0.5">{event.title}</p>
+                                        <p className="text-white/80 truncate mt-auto">{formatTime12hr(event.endTime)}</p>
+                                    </div>
+                                     {!event.courseId && (
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); onDeleteSchedule(event.scheduleId); }}
+                                            className="absolute top-0.5 right-0.5 p-0.5 bg-black/20 rounded-full text-white/70 hover:text-white hover:bg-black/40 transition-all opacity-0 group-hover:opacity-100"
+                                            aria-label="Delete schedule"
+                                        >
+                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                        </button>
+                                    )}
                                 </div>
                             );
                         })}
@@ -342,6 +354,10 @@ const SchedulePage: React.FC<SchedulePageProps> = ({ schedules, setSchedules, co
     setIsCreating(false);
   };
   
+  const handleDeleteSchedule = (scheduleIdToDelete: string) => {
+    setSchedules(prev => prev.filter(s => s.id !== scheduleIdToDelete));
+  };
+  
   if (isCreating) {
     return <NewScheduleView onBack={() => setIsCreating(false)} onCreate={handleCreateSchedule} />;
   }
@@ -363,7 +379,7 @@ const SchedulePage: React.FC<SchedulePageProps> = ({ schedules, setSchedules, co
         <AnimatePresence>
             {allSchedules.length > 0 ? (
                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                    <WeekView schedules={allSchedules} currentDay={todayDay} />
+                    <WeekView schedules={allSchedules} currentDay={todayDay} onDeleteSchedule={handleDeleteSchedule} />
                  </motion.div>
             ) : (
                 <div className="text-center mt-16 flex flex-col items-center">

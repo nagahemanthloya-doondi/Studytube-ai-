@@ -65,7 +65,7 @@ const HighlightsPanel: React.FC<HighlightsPanelProps> = ({ timestamps, setTimest
           value={bulkNotes}
           onChange={(e) => setBulkNotes(e.target.value)}
           placeholder="Paste notes, e.g., [01:23] or (1:15:30) Topic."
-          className="w-full h-32 p-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md resize-none focus:ring-2 focus:ring-cyan-500 focus:outline-none transition-colors"
+          className="w-full h-24 p-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md resize-none focus:ring-2 focus:ring-cyan-500 focus:outline-none transition-colors"
         />
         <button
           onClick={handleParseClick}
