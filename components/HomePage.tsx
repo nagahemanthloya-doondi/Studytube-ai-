@@ -1,4 +1,5 @@
 
+
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import type { UserProfile, TodoItem, Course } from '../types';
 import Modal from './Modal';
@@ -29,7 +30,7 @@ const getTodoIcon = (text: string) => {
 }
 
 // --- LOGO ICONS for ID CARD ---
-const Logo1 = () => <svg viewBox="0 0 110 38" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16.89 3.39c-1.8 0-3.6.4-5.2 1.2-3.8 1.9-6.4 5.6-6.4 10 0 4.3 2.6 8.1 6.4 10 1.6.8 3.4 1.2 5.2 1.2 1.8 0 3.6-.4 5.2-1.2 3.8-1.9 6.4-5.6 6.4-10 0-4.3-2.6-8.1-6.4-10-1.6-.8-3.4-1.2-5.2-1.2zm0 2.4c1.3 0 2.6.3 3.9.9 3.1 1.5 5.1 4.7 5.1 8.1 0 3.4-2 6.6-5.1 8.1-1.3.6-2.6.9-3.9.9s-2.6-.3-3.9-.9c-3.1-1.5-5.1-4.7-5.1-8.1 0-3.4 2-6.6 5.1-8.1 1.3-.6 2.6-.9 3.9-.9zM30.09 14.29c0-5.8 4.7-10.5 10.5-10.5s10.5 4.7 10.5 10.5-4.7 10.5-10.5 10.5-10.5-4.7-10.5-10.5zm2.4 0c0-4.5 3.6-8.1 8.1-8.1s8.1 3.6 8.1 8.1-3.6 8.1-8.1 8.1-8.1-3.6-8.1-8.1zM58.09 15.69l3.5-3.5 1.7 1.7-3.5 3.5-1.7-1.7zm1.1-12.3h2.4v2.4h-2.4v-2.4zm10.7 10.7l-1.7-1.7-3.5 3.5 1.7 1.7 3.5-3.5zM63.79 3.39h2.4v2.4h-2.4v-2.4z" fill="#E864A4"/><path d="M63.69 11.09l-4.2-4.2-1.7 1.7 4.2 4.2 1.7-1.7zm-4.1 4.6l-4.2 4.2 1.7 1.7 4.2-4.2-1.7-1.7z" fill="#E864A4"/><path d="M74.99 6.29h21.3v2.4H74.99v-2.4zM74.99 13.09h21.3v2.4H74.99v-2.4zM74.99 19.89h21.3v2.4H74.99v-2.4zM108.69 13.09l4.9 4.9 1.7-1.7-4.9-4.9-1.7 1.7zM100.89 25.19c-1.3 0-2.6-.5-3.5-1.4l-1.7 1.7c2 2 4.6 3.1 7.4 3.1s5.4-1.1 7.4-3.1l-1.7-1.7c-.9.9-2.2 1.4-3.5 1.4zm0-10.3c1.3 0 2.6.5 3.5 1.4l1.7-1.7c-2-2-4.6-3.1-7.4-3.1s-5.4 1.1-7.4 3.1l1.7 1.7c.9-.9 2.2-1.4 3.5-1.4zM108.69 18.09l-4.9-4.9-1.7 1.7 4.9 4.9 1.7-1.7z" fill="#E864A4"/></svg>;
+const Logo1 = () => <svg viewBox="0 0 110 38" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16.89 3.39c-1.8 0-3.6.4-5.2 1.2-3.8 1.9-6.4 5.6-6.4 10 0 4.3 2.6 8.1 6.4 10 1.6.8 3.4 1.2 5.2 1.2 1.8 0 3.6-.4 5.2-1.2 3.8-1.9 6.4-5.6 6.4-10 0-4.3-2.6-8.1-6.4-10-1.6-.8-3.4-1.2-5.2-1.2zm0 2.4c1.3 0 2.6.3 3.9.9 3.1 1.5 5.1 4.7 5.1 8.1 0 3.4-2 6.6-5.1 8.1-1.3.6-2.6.9-3.9.9s-2.6-.3-3.9-.9c-3.1-1.5-5.1-4.7-5.1-8.1 0-3.4 2-6.6 5.1-8.1 1.3-.6 2.6-.9 3.9-.9zM30.09 14.29c0-5.8 4.7-10.5 10.5-10.5s10.5 4.7 10.5 10.5-4.7 10.5-10.5 10.5-10.5-4.7-10.5-10.5zm2.4 0c0-4.5 3.6-8.1 8.1-8.1s8.1 3.6 8.1 8.1-3.6 8.1-8.1 8.1-8.1-3.6-8.1-8.1zM58.09 15.69l3.5-3.5 1.7 1.7-3.5 3.5-1.7-1.7zm1.1-12.3h2.4v2.4h-2.4v-2.4zm10.7 10.7l-1.7-1.7-3.5 3.5 1.7 1.7 3.5-3.5zM63.79 3.39h2.4v2.4h-2.4v-2.4z" fill="#E864A4"/><path d="M63.69 11.09l-4.2-4.2-1.7 1.7 4.2 4.2 1.7-1.7zm-4.1 4.6l-4.2 4.2 1.7 1.7 4.2-4.2-1.7-1.7z" fill="#E864A4"/><path d="M74.99 6.29h21.3v2.4H74.99v-2.4zM74.99 13.09h21.3v2.4H74.99v-2.4zM74.99 19.89h21.3v2.4H74.99v-2.4zM108.69 13.09l4.9 4.9 1.7-1.7-4.9-4.9-1.7 1.7zM100.89 25.19c-1.3 0-2.6-.5-3.5-1.4l-1.7 1.7c2 2 4.6 3.1 7.4 3.1s5.4-1.1 7.4-3.1l-1.7-1.7c-.9.9-2.2 1.4-3.5 1.4zm0-10.3c1.3 0 2.6.5 3.5 1.4l1.7-1.7c-2-2-4.6-3.1-7.4-3.1s-5.4 1.1-7.4 3.1l1.7 1.7c.9-.9 2.2-1.4 3.5-1.4zM108.69 18.09l-4.9-4.9-1.7 1.7 4.9 4.9 1.7 1.7z" fill="#E864A4"/></svg>;
 const Logo2 = () => <svg viewBox="0 0 130 38" fill="none" xmlns="http://www.w3.org/2000/svg"><text style={{whiteSpace: 'pre'}} fontFamily="monospace" fontSize="12" fill="#000"><tspan x="0" y="11.82">Student ID</tspan></text><path d="M37 26.02a.85.85 0 0 1-.6-.25L28 17.09a.87.87 0 0 1 0-1.23l8.42-8.68a.85.85 0 0 1 1.2 0 .87.87 0 0 1 0 1.23L30.82 16.5l7.8 8.04a.87.87 0 0 1 0 1.23.85.85 0 0 1-.62.25zM58.3 33.1H.7a.68.68 0 0 1-.7-.7V1.1A.68.68 0 0 1 .7.4h57.6c.38 0 .7.3.7.7v31.2c0 .38-.3.7-.7.7z" stroke="#000" strokeWidth=".8" strokeLinecap="round" strokeLinejoin="round"/></svg>;
 const Logo3 = () => <svg viewBox="0 0 130 38" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5.5 32.7a.87.87 0 0 1-.61-.25L.23 27.8a.86.86 0 0 1 0-1.22L4.89 22a.85.85 0 0 1 1.22 0 .86.86 0 0 1 0 1.22L2.06 27.2l4.05 4.05a.86.86 0 0 1 0 1.22.85.85 0 0 1-.61.23zM34.9 15.6a.86.86 0 0 1-.62-.25L29.6 10.7a.86.86 0 0 1 0-1.22l4.68-4.66a.85.85 0 0 1 1.22 0 .86.86 0 0 1 0 1.22L31.44 9.5l4.06 4.05a.86.86 0 0 1 0 1.22.85.85 0 0 1-.6.23zM1.98 12.1A20.47 20.47 0 0 1 20.2 1.4a.85.85 0 0 1 .6.23.87.87 0 0 1 .25.62v28.2a.87.87 0 0 1-.25.62.85.85 0 0 1-.6.23A20.47 20.47 0 0 1 1.98 12.1z" stroke="#000" strokeWidth=".8" strokeLinecap="round" strokeLinejoin="round"/><path d="M128.53 18.9a.85.85 0 0 1-.61-.25l-4.66-4.66a.86.86 0 0 1 0-1.22l4.66-4.66a.85.85 0 0 1 1.22 0 .86.86 0 0 1 0 1.22l-4.05 4.05 4.05 4.05a.86.86 0 0 1 0 1.22.85.85 0 0 1-.61.23zM99.13 36a.85.85 0 0 1-.61-.25L93.86 31a.86.86 0 0 1 0-1.22l4.66-4.66a.85.85 0 0 1 1.22 0 .86.86 0 0 1 0 1.22l-4.05 4.05 4.05 4.05a.86.86 0 0 1 0 1.22.85.85 0 0 1-.61.23z" stroke="#000" strokeWidth=".8" strokeLinecap="round" strokeLinejoin="round"/><path d="M110.13 29.3a20.47 20.47 0 0 1-18.2-10.7.85.85 0 0 1 .6-.23.87.87 0 0 1 .25.62V30a.87.87 0 0 1-.25.62.85.85 0 0 1-.6.23 20.47 20.47 0 0 1-18.22-10.7z" fill="#fff" stroke="#000" strokeWidth=".8" strokeLinecap="round" strokeLinejoin="round"/><text style={{whiteSpace: 'pre'}} fontFamily="monospace" fontSize="8" fill="#000"><tspan x="30" y="24.47">STRUGGLING STUDENTS CLUB</tspan></text></svg>;
 
@@ -82,7 +83,8 @@ const HomePage: React.FC<HomePageProps> = ({ profile, setProfile, homeTodos, set
 };
 
 const IDCard: React.FC<{ profile: UserProfile, onEdit: () => void }> = ({ profile, onEdit }) => {
-    const LogoComponent = LOGOS[profile.logoUrl as keyof typeof LOGOS]?.component || (() => null);
+    const isCustomLogo = profile.logoUrl?.startsWith('data:image/');
+    const LogoComponent = !isCustomLogo ? LOGOS[profile.logoUrl as keyof typeof LOGOS]?.component : null;
     
     return (
         <div className="relative">
@@ -91,16 +93,20 @@ const IDCard: React.FC<{ profile: UserProfile, onEdit: () => void }> = ({ profil
                     <div className="w-24 h-24 bg-gray-200 dark:bg-gray-700 rounded-md flex-shrink-0 flex items-center justify-center">
                         <img src="https://raw.githubusercontent.com/Tarikul-Islam-Anik/Animated-Fluent-Emojis/master/Emojis/Smilies/Cat%20with%20Wry%20Smile.png" alt="Cat with Wry Smile" width="80" height="80" />
                     </div>
-                    <div className="flex-grow flex flex-col justify-between">
-                        <div className="h-10 flex items-center justify-center">
-                            <LogoComponent />
+                    <div className="flex-grow flex flex-col justify-between min-w-0">
+                        <div className="h-10 flex items-center justify-center overflow-hidden [&_svg]:max-w-full [&_svg]:max-h-full">
+                            {isCustomLogo ? (
+                                <img src={profile.logoUrl} alt="Custom Logo" className="max-h-full max-w-full object-contain" />
+                            ) : LogoComponent ? (
+                                <LogoComponent />
+                            ) : null}
                         </div>
                         <div className="w-full h-1 my-1 bg-gray-500/20" style={{'--tw-bg-opacity': '0.2', backgroundImage: `repeating-linear-gradient(-45deg, transparent, transparent 4px, rgba(128,128,128,0.2) 4px, rgba(128,128,128,0.2) 5px)`}}></div>
-                        <div className="grid grid-cols-2 text-xs font-mono text-gray-800/80">
-                            <div><span className="font-semibold">NAME</span><br/>{profile.name}</div>
-                            <div><span className="font-semibold">BIRTHDAY</span><br/>{profile.birthday}</div>
-                            <div><span className="font-semibold">SCHOOL</span><br/>{profile.school}</div>
-                            <div><span className="font-semibold">YEAR LVL.</span><br/>{profile.yearLevel}</div>
+                        <div className="grid grid-cols-2 text-xs font-mono text-gray-800/80 gap-x-2">
+                            <div className="break-words"><span className="font-semibold">NAME</span><br/>{profile.name}</div>
+                            <div className="break-words"><span className="font-semibold">BIRTHDAY</span><br/>{profile.birthday}</div>
+                            <div className="break-words"><span className="font-semibold">SCHOOL</span><br/>{profile.school}</div>
+                            <div className="break-words"><span className="font-semibold">YEAR LVL.</span><br/>{profile.yearLevel}</div>
                         </div>
                     </div>
                 </div>
@@ -232,11 +238,23 @@ interface EditIDCardViewProps {
 }
 const EditIDCardView: React.FC<EditIDCardViewProps> = ({ currentProfile, onSave, onBack }) => {
     const [profile, setProfile] = useState(currentProfile);
+    const logoInputRef = useRef<HTMLInputElement>(null);
 
     const handleSave = () => {
         onSave(profile);
         onBack();
     }
+
+    const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file && file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setProfile(p => ({ ...p, logoUrl: reader.result as string }));
+            };
+            reader.readAsDataURL(file);
+        }
+    };
 
     return (
         <div className="pb-8">
@@ -261,7 +279,14 @@ const EditIDCardView: React.FC<EditIDCardViewProps> = ({ currentProfile, onSave,
                  <div>
                     <h3 className="font-semibold mb-2">Logo</h3>
                     <div className="grid grid-cols-2 gap-2">
-                        <button className="h-16 flex items-center justify-center border-2 border-dashed rounded-lg">Upload a custom logo</button>
+                        <input
+                            type="file"
+                            accept="image/png"
+                            ref={logoInputRef}
+                            onChange={handleLogoUpload}
+                            className="hidden"
+                        />
+                        <button onClick={() => logoInputRef.current?.click()} className="h-16 flex items-center justify-center border-2 border-dashed rounded-lg">Upload a custom logo</button>
                         {Object.entries(LOGOS).map(([key, { component: Logo, name }]) => (
                             <button key={key} onClick={() => setProfile(p => ({...p, logoUrl: key}))} className={`h-16 flex items-center justify-center border-2 rounded-lg ${profile.logoUrl === key ? 'border-black dark:border-white' : 'border-gray-300'}`}>
                                 <Logo />
@@ -277,6 +302,14 @@ const EditIDCardView: React.FC<EditIDCardViewProps> = ({ currentProfile, onSave,
                  <div>
                     <label className="font-semibold text-sm">Birthday</label>
                     <input type="date" value={profile.birthday} onChange={e => setProfile(p => ({...p, birthday: e.target.value}))} className="w-full p-2 mt-1 border rounded dark:bg-gray-700 dark:border-gray-600"/>
+                </div>
+                 <div>
+                    <label className="font-semibold text-sm">School</label>
+                    <input type="text" value={profile.school} onChange={e => setProfile(p => ({...p, school: e.target.value}))} className="w-full p-2 mt-1 border rounded dark:bg-gray-700 dark:border-gray-600"/>
+                </div>
+                 <div>
+                    <label className="font-semibold text-sm">Year Level</label>
+                    <input type="text" value={profile.yearLevel} onChange={e => setProfile(p => ({...p, yearLevel: e.target.value}))} className="w-full p-2 mt-1 border rounded dark:bg-gray-700 dark:border-gray-600"/>
                 </div>
             </div>
         </div>

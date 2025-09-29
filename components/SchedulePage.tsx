@@ -1,5 +1,6 @@
 
-import React, { useState, useMemo, useRef } from 'react';
+
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import type { Schedule, Day, ScheduleTime, Course } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -13,79 +14,164 @@ const BackArrowIcon: React.FC<{ className?: string }> = ({ className }) => (
 const CameraIcon: React.FC<{ className?: string }> = ({ className }) => (
     <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" /><circle cx="12" cy="13" r="3" /><path d="M12 8v-2" /><path d="M12 8h2" /></svg>
 );
-const RewindIcon: React.FC<{ className?: string }> = ({ className }) => (
-    <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 19 2 12 11 5 11 19" /><polygon points="22 19 13 12 22 5 22 19" /></svg>
-);
-const PlayIcon: React.FC<{ className?: string }> = ({ className }) => (
-    <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3" /></svg>
-);
-const ForwardIcon: React.FC<{ className?: string }> = ({ className }) => (
-    <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 19 22 12 13 5 13 19" /><polygon points="2 19 11 12 2 5 2 19" /></svg>
-);
-const ScheduleLayoutIcon: React.FC<{ className?: string }> = ({ className }) => (
-    <svg className={className} width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="8" y="12" width="22" height="18" rx="2" fill="#D1D5DB"/>
-        <rect x="8" y="34" width="22" height="18" rx="2" fill="#D1D5DB"/>
-        <rect x="34" y="12" width="22" height="40" rx="2" fill="#D1D5DB"/>
-    </svg>
-);
 
 const SCHEDULE_COLORS = ['#FFFFFF', '#FCA5A5', '#BFDBFE', '#D8B4FE', '#A7F3D0', '#FDE68A', '#FFD8B3'];
-const DAYS: Day[] = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+const DAYS: Day[] = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+
+// --- HELPERS ---
+const getMinutes = (timeStr: string): number => {
+    if (!timeStr || !timeStr.includes(':')) return 0;
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    return hours * 60 + minutes;
+};
+
+const formatMinutesToTime = (totalMinutes: number): string => {
+    if (isNaN(totalMinutes) || totalMinutes < 0) return '00:00';
+    const mins = Math.floor(totalMinutes % 60);
+    const hrs = Math.floor(totalMinutes / 60);
+    return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+};
 
 
-interface SchedulePlayerProps {
-  schedule?: Partial<Schedule> | null;
-  time?: ScheduleTime | null;
-}
-const SchedulePlayer: React.FC<SchedulePlayerProps> = ({ schedule, time }) => {
+// --- SUB-COMPONENTS ---
+
+const IPodPlayer: React.FC<{
+    event: { schedule: Partial<Schedule>, time: ScheduleTime } | null;
+    progress: number;
+}> = ({ event, progress }) => {
+    
+    const schedule = event?.schedule;
+    const time = event?.time;
+    const isNextUp = schedule?.title?.startsWith('Next up:');
+    const displayProgress = isNextUp ? 0 : progress;
+
+    const totalDurationMinutes = time ? getMinutes(time.endTime) - getMinutes(time.startTime) : 0;
+    const elapsedMinutes = (totalDurationMinutes * displayProgress) / 100;
+
     return (
-        <div className="bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 rounded-2xl p-4 shadow-md w-full max-w-md mx-auto">
-            <div className="flex gap-4">
-                <div className="w-24 h-24 bg-gray-300 dark:bg-gray-700 rounded-md flex items-center justify-center flex-shrink-0 relative overflow-hidden">
-                    {schedule?.imageUrl ? (
-                        <img src={schedule.imageUrl} alt={schedule.title} className="w-full h-full object-cover"/>
-                    ) : (
-                       <CameraIcon className="w-8 h-8 text-gray-500"/>
-                    )}
-                </div>
-                <div className="flex flex-col justify-center overflow-hidden flex-grow">
-                    <div className="flex justify-between items-center text-xs text-green-600 dark:text-green-400">
-                        <p>In Progress</p>
-                        <div className="flex items-center gap-1">
-                           <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                           <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse [animation-delay:0.2s]"></div>
-                        </div>
+        <div className="w-full max-w-sm mx-auto bg-gray-100 dark:bg-zinc-800 p-3 rounded-2xl shadow-lg border-[6px] border-gray-200 dark:border-zinc-900 mb-6">
+            <div className="bg-white dark:bg-black border-2 border-black dark:border-gray-700 rounded p-2">
+                <div className="flex justify-between items-center text-xs text-gray-500 mb-1">
+                    <span className="font-bold">Schedule</span>
+                    <div className="flex items-center gap-1.5">
+                        <svg width="12" height="12" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1.5 5.5H13.5V11.5C13.5 12.6046 12.6046 13.5 11.5 13.5H3.5C2.39543 13.5 1.5 12.6046 1.5 11.5V5.5Z" stroke="#34D399" strokeWidth="2"/><path d="M4.5 5.5V2.5C4.5 1.94772 4.94772 1.5 5.5 1.5H9.5C10.0523 1.5 10.5 1.94772 10.5 2.5V5.5" stroke="#34D399" strokeWidth="2"/></svg>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="4" y="6" width="14" height="12" rx="2" stroke="#34D399" strokeWidth="2"/><path d="M18 9H20V15H18V9Z" fill="#34D399"/></svg>
                     </div>
-                    <h3 className="font-bold text-lg truncate text-black dark:text-white">{schedule?.title || 'No Class'}</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">{schedule?.instructor || 'Free Time'}</p>
+                </div>
+                <div className="my-2 text-center text-black dark:text-white">
+                    <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 mx-auto my-2 rounded-sm border dark:border-gray-700 flex items-center justify-center">
+                        {schedule?.imageUrl ? <img src={schedule.imageUrl} alt={schedule.title} className="w-full h-full object-cover"/> : <span className="text-2xl">📚</span>}
+                    </div>
+                    <h3 className="font-bold text-base truncate">{schedule?.title || 'No Class'}</h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{schedule?.instructor || 'Free Time'}</p>
+                </div>
+                <div className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full">
+                    <div className="h-full bg-gray-500 dark:bg-gray-400 rounded-full" style={{ width: `${displayProgress}%` }}></div>
+                </div>
+                <div className="flex justify-between text-xs font-mono mt-1 text-gray-500">
+                    <span>{formatMinutesToTime(elapsedMinutes)}</span>
+                    <span>{formatMinutesToTime(totalDurationMinutes)}</span>
                 </div>
             </div>
-            <div className="w-full h-1.5 bg-gray-300 dark:bg-gray-600 rounded-full mt-3">
-                <div className="w-1/2 h-full bg-black dark:bg-white rounded-full"></div>
+
+            <div className="relative w-36 h-36 mx-auto mt-4 bg-gray-50 dark:bg-zinc-700 rounded-full border-2 border-gray-200 dark:border-zinc-600 flex items-center justify-center cursor-pointer">
+                <div className="absolute top-3 text-xs font-bold text-gray-500 dark:text-gray-400 tracking-widest">SCHEDULE</div>
+                <div className="absolute left-3 text-xl font-bold text-gray-400 dark:text-gray-500">{"|◀"}</div>
+                <div className="absolute right-3 text-xl font-bold text-gray-400 dark:text-gray-500">{"▶|"}</div>
+                <div className="absolute bottom-3 text-xl font-bold text-gray-400 dark:text-gray-500">{"▶︎❚❚"}</div>
+                <div className="w-10 h-10 bg-gray-100 dark:bg-zinc-800 rounded-full border-2 border-gray-200 dark:border-zinc-600"></div>
             </div>
-            <div className="flex justify-between text-xs font-mono mt-1 text-gray-500 dark:text-gray-400">
-                <span>{time?.startTime ? time.startTime : '00:00'}</span>
-                <span>{time?.endTime ? time.endTime : '00:00'}</span>
+        </div>
+    );
+};
+
+const WeekView: React.FC<{ schedules: Schedule[]; currentDay: Day; }> = ({ schedules, currentDay }) => {
+    const days: Day[] = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+    
+    const { startHour, totalHours, timeLabels } = useMemo(() => {
+        const allTimes = schedules.flatMap(s => s.times.flatMap(t => [getMinutes(t.startTime), getMinutes(t.endTime)]));
+        const minHour = allTimes.length > 0 ? Math.floor(Math.min(...allTimes) / 60) : 7;
+        const maxHour = allTimes.length > 0 ? Math.ceil(Math.max(...allTimes) / 60) : 18;
+        const sh = Math.max(0, minHour - 1);
+        const eh = Math.min(24, maxHour + 1);
+        const th = eh - sh;
+        const tl = Array.from({ length: th }, (_, i) => sh + i);
+        return { startHour: sh, totalHours: th, timeLabels: tl };
+    }, [schedules]);
+
+    const timeToPercent = (timeStr: string) => {
+        if (totalHours <= 0) return 0;
+        const decimalHours = getMinutes(timeStr) / 60;
+        return Math.max(0, ((decimalHours - startHour) / totalHours) * 100);
+    };
+
+    const eventsByDay = useMemo(() => {
+        const map = new Map<Day, (Schedule & ScheduleTime)[]>();
+        days.forEach(day => map.set(day, []));
+        schedules.forEach(schedule => {
+            schedule.times.forEach(time => {
+                time.days.forEach(day => {
+                    if (map.has(day)) {
+                        map.get(day)!.push({ ...schedule, ...time });
+                    }
+                });
+            });
+        });
+        map.forEach(events => events.sort((a, b) => getMinutes(a.startTime) - getMinutes(b.startTime)));
+        return map;
+    }, [schedules]);
+
+    return (
+        <div className="mt-8 w-full max-w-4xl mx-auto">
+            <div className="grid grid-cols-[auto_repeat(7,minmax(0,1fr))] gap-1 sm:gap-2 text-center text-xs font-bold mb-2">
+                <div></div>
+                {days.map(day => (
+                    <div key={day} className={`p-2 rounded-lg ${day === currentDay ? 'bg-yellow-300 text-black' : 'bg-gray-100 dark:bg-gray-800'}`}>
+                        {day}
+                    </div>
+                ))}
             </div>
-            <div className="flex justify-around items-center mt-3 text-gray-700 dark:text-gray-300">
-                <RewindIcon className="w-8 h-8 opacity-50"/>
-                <div className="w-16 h-16 rounded-full bg-white dark:bg-gray-700 shadow-inner flex items-center justify-center">
-                    <PlayIcon className="w-8 h-8 text-black dark:text-white"/>
+            <div className="grid grid-cols-[auto_repeat(7,minmax(0,1fr))] gap-1 sm:gap-2 h-[500px]">
+                <div className="relative">
+                    {timeLabels.map(hour => (
+                        <div key={hour} style={{ top: `${timeToPercent(`${hour}:00`)}%` }} className="absolute -translate-y-1/2 text-[10px] text-gray-400 pr-2 w-12 text-right">
+                            {hour % 12 === 0 ? 12 : hour % 12}{hour < 12 ? 'AM' : 'PM'}
+                        </div>
+                    ))}
                 </div>
-                <ForwardIcon className="w-8 h-8 opacity-50"/>
+                {days.map(day => (
+                    <div key={day} className="relative h-full bg-gray-50 dark:bg-gray-900/50 rounded-lg overflow-hidden">
+                        {(eventsByDay.get(day) || []).map(event => {
+                            const top = timeToPercent(event.startTime);
+                            const bottom = timeToPercent(event.endTime);
+                            const height = bottom - top;
+                            return (
+                                <div
+                                    key={`${event.id}-${event.startTime}`}
+                                    className="absolute w-[95%] left-[2.5%] p-1 rounded text-[10px] text-white overflow-hidden shadow"
+                                    style={{
+                                        top: `${top}%`,
+                                        height: `max(15px, ${height}%)`,
+                                        backgroundColor: event.color === '#FFFFFF' ? '#06b6d4' : event.color || '#06b6d4',
+                                    }}
+                                >
+                                    <p className="font-bold truncate">{event.title}</p>
+                                    <p className="truncate">{event.instructor}</p>
+                                </div>
+                            );
+                        })}
+                    </div>
+                ))}
             </div>
         </div>
     );
 };
 
 
-interface NewScheduleViewProps {
+const NewScheduleView: React.FC<{
   onBack: () => void;
   onCreate: (newSchedule: Omit<Schedule, 'id'>) => void;
-}
-
-const NewScheduleView: React.FC<NewScheduleViewProps> = ({ onBack, onCreate }) => {
+}> = ({ onBack, onCreate }) => {
     const [color, setColor] = useState(SCHEDULE_COLORS[0]);
     const [title, setTitle] = useState('');
     const [instructor, setInstructor] = useState('');
@@ -95,8 +181,6 @@ const NewScheduleView: React.FC<NewScheduleViewProps> = ({ onBack, onCreate }) =
       { id: Date.now().toString(), days: [], startTime: '09:00', endTime: '10:00' }
     ]);
     const fileInputRef = useRef<HTMLInputElement>(null);
-
-    const previewSchedule = { title, instructor, location, color, imageUrl };
 
     const handleCreate = () => {
         if (!title.trim()) {
@@ -129,13 +213,13 @@ const NewScheduleView: React.FC<NewScheduleViewProps> = ({ onBack, onCreate }) =
             <input type="file" ref={fileInputRef} onChange={handleImageUpload} accept="image/*" className="hidden" />
             <div className="flex items-center mb-6">
                 <button onClick={onBack} className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
-                    <BackArrowIcon className="w-6 h-6 rotate-180"/>
+                    <BackArrowIcon />
                 </button>
                 <h1 className="text-xl font-bold ml-4">New Schedule</h1>
             </div>
 
             <div onClick={() => fileInputRef.current?.click()} className="cursor-pointer">
-              <SchedulePlayer schedule={previewSchedule} />
+              <IPodPlayer event={{ schedule: { title, instructor, imageUrl }, time: { id: '', days: [], startTime: '00:00', endTime: '00:00' } }} progress={0} />
             </div>
 
             <div className="space-y-6 mt-6">
@@ -145,7 +229,6 @@ const NewScheduleView: React.FC<NewScheduleViewProps> = ({ onBack, onCreate }) =
                         {SCHEDULE_COLORS.map(c => (
                             <button key={c} onClick={() => setColor(c)} className={`w-8 h-8 rounded-full border-2 ${color === c ? 'border-black dark:border-white ring-2 ring-offset-2 ring-offset-gray-50 dark:ring-offset-black ring-black dark:ring-white' : 'border-gray-300 dark:border-gray-600'}`} style={{backgroundColor: c}}></button>
                         ))}
-                        <button className="w-8 h-8 rounded-full border-2 border-gray-300 dark:border-gray-600 flex items-center justify-center"><PlusIcon className="w-5 h-5"/></button>
                     </div>
                 </div>
                 <div>
@@ -161,16 +244,12 @@ const NewScheduleView: React.FC<NewScheduleViewProps> = ({ onBack, onCreate }) =
                     <input id="location" type="text" value={location} onChange={e => setLocation(e.target.value)} placeholder="Enter room location (Optional)" className="w-full p-3 mt-1 bg-gray-200 dark:bg-gray-800 rounded-lg border-2 border-transparent focus:border-cyan-500 focus:bg-white dark:focus:bg-gray-900 outline-none"/>
                 </div>
 
-                <div className="flex justify-between items-center">
-                    <h3 className="font-semibold">Schedules</h3>
-                    <button onClick={addScheduleTime} className="p-2 bg-gray-200 dark:bg-gray-800 rounded-full"><PlusIcon className="w-5 h-5"/></button>
-                </div>
+                <h3 className="font-semibold">Schedules</h3>
                 
                 {times.map((s, index) => (
                     <div key={s.id} className="p-4 bg-gray-100 dark:bg-gray-800/50 rounded-lg space-y-3">
-                        <p className="font-semibold">Schedule {index + 1}</p>
                         <div className="flex justify-between">
-                            {DAYS.map(day => (
+                            {[...DAYS.slice(1), DAYS[0]].map(day => (
                                 <button key={day} onClick={() => toggleDay(s.id, day)} className={`px-3 py-1 text-sm font-semibold rounded-md ${s.days.includes(day) ? 'bg-black text-white dark:bg-white dark:text-black' : 'bg-white dark:bg-gray-700'}`}>
                                     {day}
                                 </button>
@@ -182,13 +261,15 @@ const NewScheduleView: React.FC<NewScheduleViewProps> = ({ onBack, onCreate }) =
                         </div>
                     </div>
                 ))}
+                 <button onClick={addScheduleTime} className="w-full p-3 bg-gray-200 dark:bg-gray-800 rounded-lg flex items-center justify-center font-semibold">
+                    <PlusIcon className="w-5 h-5 mr-2"/> Add Time
+                </button>
                 
-                <button onClick={handleCreate} className="w-full p-4 bg-gray-300 dark:bg-gray-700 font-bold rounded-lg hover:bg-gray-400 dark:hover:bg-gray-600">Create</button>
+                <button onClick={handleCreate} className="w-full p-4 bg-black text-white dark:bg-white dark:text-black font-bold rounded-lg hover:opacity-80 transition-opacity">Create</button>
             </div>
         </div>
     );
 };
-
 
 interface SchedulePageProps {
   schedules: Schedule[];
@@ -198,34 +279,63 @@ interface SchedulePageProps {
 
 const SchedulePage: React.FC<SchedulePageProps> = ({ schedules, setSchedules, courses }) => {
   const [isCreating, setIsCreating] = useState(false);
+  const [currentTime, setCurrentTime] = useState(new Date());
 
-  const today = new Date();
+  useEffect(() => {
+      const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+      return () => clearInterval(timer);
+  }, []);
+
+  const today = currentTime;
   const formattedDate = today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
-  const weekDayMap: Day[] = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-  const todayDay = weekDayMap[today.getDay()];
-  
-  const getMinutes = (time: string) => { const [h, m] = time.split(':').map(Number); return h * 60 + m; };
-  const currentTimeInMinutes = getMinutes(`${today.getHours()}:${today.getMinutes()}`);
+  const todayDay = DAYS[today.getDay()];
 
-  const todaysEvents = useMemo(() => {
-    const events: { schedule: Schedule, time: ScheduleTime }[] = [];
-    schedules.forEach(schedule => {
-        schedule.times.forEach(time => {
-            if (time.days.includes(todayDay)) {
-                events.push({ schedule, time });
-            }
-        });
+  const allSchedules = useMemo(() => {
+    const courseSchedules: Schedule[] = courses.flatMap(course => 
+      course.schedules.length > 0 ? [{
+        id: course.id,
+        title: course.code,
+        instructor: course.instructor,
+        location: course.location,
+        color: course.color,
+        times: course.schedules,
+        courseId: course.id
+      }] : []
+    );
+    return [...schedules, ...courseSchedules];
+  }, [schedules, courses]);
+
+  const { currentEvent, progress } = useMemo(() => {
+    const now = currentTime;
+    const currentTimeInMinutes = now.getHours() * 60 + now.getMinutes();
+
+    const todaysEvents = allSchedules
+        .flatMap(schedule => schedule.times.map(time => ({ schedule, time })))
+        .filter(({ time }) => time.days.includes(todayDay))
+        .sort((a, b) => getMinutes(a.time.startTime) - getMinutes(b.time.startTime));
+
+    const activeEvent = todaysEvents.find(({ time }) => {
+        const start = getMinutes(time.startTime);
+        const end = getMinutes(time.endTime);
+        return currentTimeInMinutes >= start && currentTimeInMinutes < end;
     });
-    return events.sort((a, b) => getMinutes(a.time.startTime) - getMinutes(b.time.startTime));
-  }, [schedules, todayDay]);
 
-  const currentEvent = useMemo(() => {
-    const activeEvent = todaysEvents.find(event => currentTimeInMinutes >= getMinutes(event.time.startTime) && currentTimeInMinutes <= getMinutes(event.time.endTime));
-    if (activeEvent) return activeEvent;
-    const upcomingEvent = todaysEvents.find(event => currentTimeInMinutes < getMinutes(event.time.startTime));
-    if (upcomingEvent) return upcomingEvent;
-    return null;
-  }, [todaysEvents, currentTimeInMinutes]);
+    if (activeEvent) {
+        const start = getMinutes(activeEvent.time.startTime);
+        const end = getMinutes(activeEvent.time.endTime);
+        const duration = end - start;
+        const elapsed = currentTimeInMinutes - start;
+        const currentProgress = duration > 0 ? (elapsed / duration) * 100 : 0;
+        return { currentEvent: activeEvent, progress: currentProgress };
+    }
+
+    const nextEvent = todaysEvents.find(({ time }) => getMinutes(time.startTime) > currentTimeInMinutes);
+    if (nextEvent) {
+        return { currentEvent: { schedule: { title: `Next up: ${nextEvent.schedule.title}`, instructor: nextEvent.schedule.instructor }, time: nextEvent.time }, progress: 0 };
+    }
+
+    return { currentEvent: null, progress: 0 };
+  }, [currentTime, allSchedules, todayDay]);
 
   const handleCreateSchedule = (newSchedule: Omit<Schedule, 'id'>) => {
     setSchedules(prev => [...prev, { ...newSchedule, id: Date.now().toString() }]);
@@ -238,27 +348,30 @@ const SchedulePage: React.FC<SchedulePageProps> = ({ schedules, setSchedules, co
 
   return (
     <div className="w-full">
-        <div className="flex justify-between items-start mb-6">
+        <div className="flex justify-between items-start mb-4">
             <div>
                 <h1 className="text-4xl font-serif font-bold text-black dark:text-white">Class Schedule</h1>
                 <p className="text-gray-500 dark:text-gray-400">{formattedDate}</p>
             </div>
             <button onClick={() => setIsCreating(true)} className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
-                <PlusIcon className="w-8 h-8" />
+                <PlusIcon className="w-8 h-8 text-black dark:text-white" />
             </button>
         </div>
         
-        <SchedulePlayer schedule={currentEvent?.schedule} time={currentEvent?.time} />
+        <IPodPlayer event={currentEvent} progress={progress} />
 
-        {schedules.length === 0 && (
-            <div className="text-center mt-16 flex flex-col items-center">
-                <ScheduleLayoutIcon />
-                <p className="mt-4 font-semibold text-gray-800 dark:text-gray-200">No schedule found</p>
-                <button onClick={() => setIsCreating(true)} className="mt-4 px-6 py-2 bg-yellow-400 text-black font-bold rounded-lg shadow-md hover:bg-yellow-500 transition-colors">
-                    + Schedule
-                </button>
-            </div>
-        )}
+        <AnimatePresence>
+            {allSchedules.length > 0 ? (
+                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                    <WeekView schedules={allSchedules} currentDay={todayDay} />
+                 </motion.div>
+            ) : (
+                <div className="text-center mt-16 flex flex-col items-center">
+                    <p className="mt-4 font-semibold text-gray-800 dark:text-gray-200">No schedule found</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Click the '+' to add your first class.</p>
+                </div>
+            )}
+        </AnimatePresence>
     </div>
   );
 };
