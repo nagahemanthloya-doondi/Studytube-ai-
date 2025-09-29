@@ -397,7 +397,7 @@ const App: React.FC = () => {
                 />
               </div>
 
-              <div className="md:col-span-2 lg:col-span-1 xl:col-span-1 flex flex-col gap-6" style={{ maxHeight: 'calc(100vh - 120px)' }}>
+              <div className="md:col-span-2 lg:col-span-1 xl:col-span-1 flex flex-col gap-6">
                 <AnimatePresence>
                   {pdfFileUrl && (
                     <motion.div 

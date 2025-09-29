@@ -1,5 +1,6 @@
 
-import React, { useState } from 'react';
+
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import type { TimestampedNote } from '../types';
 import Modal from './Modal';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -12,9 +13,38 @@ interface HighlightsPanelProps {
   duration: number;
 }
 
+const ChevronDownIcon: React.FC<{className?: string}> = ({ className }) => (
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+);
+
+
 const HighlightsPanel: React.FC<HighlightsPanelProps> = ({ timestamps, setTimestamps, onTimestampClick, currentTime, duration }) => {
   const [bulkNotes, setBulkNotes] = useState('');
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [isParsingSectionOpen, setIsParsingSectionOpen] = useState(true);
+  
+  const itemRefs = useRef<(HTMLLIElement | null)[]>([]);
+
+  useEffect(() => {
+    itemRefs.current = itemRefs.current.slice(0, timestamps.length);
+  }, [timestamps]);
+
+  const activeIndex = useMemo(() => {
+    return timestamps.findIndex((ts, index) => {
+        const nextTs = timestamps[index + 1];
+        return currentTime >= ts.time && (nextTs ? currentTime < nextTs.time : true);
+    });
+  }, [timestamps, currentTime]);
+
+  useEffect(() => {
+    if (activeIndex !== -1 && itemRefs.current[activeIndex]) {
+        itemRefs.current[activeIndex]?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center',
+        });
+    }
+  }, [activeIndex]);
+
 
   const formatTime = (totalSeconds: number) => {
     const hours = Math.floor(totalSeconds / 3600);
@@ -60,20 +90,38 @@ const HighlightsPanel: React.FC<HighlightsPanelProps> = ({ timestamps, setTimest
   return (
     <div className="flex flex-col h-full">
       <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
-        <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">Parse Highlights from Notes</h3>
-        <textarea
-          value={bulkNotes}
-          onChange={(e) => setBulkNotes(e.target.value)}
-          placeholder="Paste notes, e.g., [01:23] or (1:15:30) Topic."
-          className="w-full h-24 p-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md resize-none focus:ring-2 focus:ring-cyan-500 focus:outline-none transition-colors"
-        />
         <button
-          onClick={handleParseClick}
-          className="mt-2 w-full px-4 py-2 bg-cyan-600 text-white font-semibold rounded-md hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 dark:focus:ring-offset-gray-900 disabled:bg-cyan-400 dark:disabled:bg-cyan-800 disabled:cursor-not-allowed transition-all active:scale-95"
-          disabled={!bulkNotes.trim()}
+            onClick={() => setIsParsingSectionOpen(prev => !prev)}
+            className="w-full flex justify-between items-center text-lg font-semibold text-gray-800 dark:text-gray-200"
+            aria-expanded={isParsingSectionOpen}
         >
-          Parse Highlights
+            <span>Parse Highlights from Notes</span>
+            <ChevronDownIcon className={`transition-transform duration-300 ${isParsingSectionOpen ? 'rotate-180' : ''}`} />
         </button>
+        <AnimatePresence>
+            {isParsingSectionOpen && (
+                <motion.div
+                    initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                    animate={{ opacity: 1, height: 'auto', marginTop: '0.5rem' }}
+                    exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                    className="overflow-hidden"
+                >
+                    <textarea
+                      value={bulkNotes}
+                      onChange={(e) => setBulkNotes(e.target.value)}
+                      placeholder="Paste notes, e.g., [01:23] or (1:15:30) Topic."
+                      className="w-full h-24 p-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md resize-none focus:ring-2 focus:ring-cyan-500 focus:outline-none transition-colors"
+                    />
+                    <button
+                      onClick={handleParseClick}
+                      className="mt-2 w-full px-4 py-2 bg-cyan-600 text-white font-semibold rounded-md hover:bg-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 dark:focus:ring-offset-gray-900 disabled:bg-cyan-400 dark:disabled:bg-cyan-800 disabled:cursor-not-allowed transition-all active:scale-95"
+                      disabled={!bulkNotes.trim()}
+                    >
+                      Parse Highlights
+                    </button>
+                </motion.div>
+            )}
+        </AnimatePresence>
       </div>
 
       <div className="flex-grow overflow-y-auto pr-2 p-4 min-h-0">
@@ -95,6 +143,7 @@ const HighlightsPanel: React.FC<HighlightsPanelProps> = ({ timestamps, setTimest
 
               return (
               <motion.li 
+                ref={el => (itemRefs.current[index] = el)}
                 key={ts.id}
                 layout
                 initial={{ opacity: 0, y: 10 }}
