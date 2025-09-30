@@ -1,6 +1,5 @@
 
 
-
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import type { InsertedLink, Theme, PlayerState, Message, HistoryItem, VideoSession, QuizItem, TimestampedNote, Course, Schedule, UserProfile, TodoItem, ScheduleTime, Day } from './types';
@@ -347,6 +346,16 @@ const App: React.FC = () => {
     }
   };
 
+  const handleGoHome = () => {
+    loadVideo('');
+    setActiveView('Home');
+  };
+
+  const handleGoToCourses = () => {
+    loadVideo('');
+    setActiveView('Course');
+  };
+
   const handleProgress = useCallback((state: PlayerState) => {
     setPlayerState(state);
     const watchedPercentage = (state.watchedSeconds.size / state.duration) * 100;
@@ -463,7 +472,8 @@ const App: React.FC = () => {
         <Header 
           history={history}
           onLoadVideo={loadVideo}
-          onGoHome={() => loadVideo('')}
+          onGoHome={handleGoHome}
+          onGoCourses={handleGoToCourses}
           theme={theme}
           onToggleTheme={toggleTheme}
         />
@@ -479,7 +489,7 @@ const App: React.FC = () => {
               className="pb-24"
             >
               {activeView === 'Home' && <HomePage profile={profile} setProfile={setProfile} homeTodos={homeTodos} setHomeTodos={setHomeTodos} courses={courses} setCourses={setCourses} notificationPermission={notificationPermission} onEnableNotifications={handleRequestNotificationPermission} />}
-              {activeView === 'Course' && <CoursesPage onLoadVideo={loadVideo} courses={courses} setCourses={setCourses} />}
+              {activeView === 'Course' && <CoursesPage onLoadVideo={loadVideo} courses={courses} setCourses={setCourses} history={history} setHistory={setHistory} />}
               {activeView === 'Schedule' && <SchedulePage schedules={schedules} setSchedules={setSchedules} courses={courses} />}
                <BottomNavBar activeView={activeView} setActiveView={setActiveView} />
             </motion.div>

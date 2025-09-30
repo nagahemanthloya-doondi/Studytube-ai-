@@ -1,4 +1,5 @@
 
+
 import React, { useState, useRef, useEffect } from 'react';
 import { HistoryIcon } from './icons/HistoryIcon';
 import { MoonIcon } from './icons/MoonIcon';
@@ -10,6 +11,7 @@ interface HeaderProps {
   history: HistoryItem[];
   onLoadVideo: (url: string) => void;
   onGoHome: () => void;
+  onGoCourses: () => void;
   theme: Theme;
   onToggleTheme: () => void;
 }
@@ -40,7 +42,7 @@ const CoursesIcon: React.FC = () => (
 );
 
 
-const Header: React.FC<HeaderProps> = ({ history, onLoadVideo, onGoHome, theme, onToggleTheme }) => {
+const Header: React.FC<HeaderProps> = ({ history, onLoadVideo, onGoHome, onGoCourses, theme, onToggleTheme }) => {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const historyRef = useRef<HTMLDivElement>(null);
 
@@ -117,7 +119,7 @@ const Header: React.FC<HeaderProps> = ({ history, onLoadVideo, onGoHome, theme, 
             </motion.div>
           </AnimatePresence>
           <button 
-            onClick={onGoHome}
+            onClick={onGoCourses}
             className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 dark:focus:ring-offset-gray-900 transition-colors"
           >
             <CoursesIcon /> Courses

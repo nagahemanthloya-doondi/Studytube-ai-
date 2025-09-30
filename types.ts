@@ -75,6 +75,8 @@ export interface Flashcard {
   id: string;
   front: string;
   back: string;
+  frontImage?: string;
+  backImage?: string;
 }
 
 export interface StudySet {

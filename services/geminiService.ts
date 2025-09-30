@@ -1,5 +1,6 @@
 
-import { GoogleGenAI, Chat, Type } from "@google/genai";
+
+import { GoogleGenAI, Chat, Type, Modality } from "@google/genai";
 import type { QuizItem, TimestampedNote } from '../types';
 
 // FIX: Initialize GoogleGenAI with the API key directly from environment variables as per guidelines.
@@ -69,5 +70,30 @@ export async function generateQuiz(title: string, notes: TimestampedNote[]): Pro
   } catch (error) {
     console.error("Error generating quiz:", error);
     throw new Error("Failed to generate a quiz. The AI may be unable to process this topic. Please try again later.");
+  }
+}
+
+export async function generateImageForFlashcard(prompt: string): Promise<string> {
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash-image-preview',
+      contents: {
+        parts: [{ text: prompt }],
+      },
+      config: {
+        responseModalities: [Modality.IMAGE, Modality.TEXT],
+      },
+    });
+
+    for (const part of response.candidates[0].content.parts) {
+      if (part.inlineData && part.inlineData.mimeType.startsWith('image/')) {
+        return part.inlineData.data; // This is the base64 string
+      }
+    }
+
+    throw new Error("AI did not return an image.");
+  } catch (error) {
+    console.error("Error generating image:", error);
+    throw new Error("Failed to generate an image. The AI may be busy or the prompt could not be processed. Please try again.");
   }
 }

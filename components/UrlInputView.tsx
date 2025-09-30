@@ -1,29 +1,36 @@
 
 
+
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import type { Course, CourseFile, TodoItem, CourseLink, StudySet, Flashcard, ScheduleTime, Day } from '../types';
+import type { Course, CourseFile, TodoItem, CourseLink, StudySet, Flashcard, ScheduleTime, Day, HistoryItem } from '../types';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { motion, AnimatePresence } from 'framer-motion';
 import Modal from './Modal';
+import { HistoryIcon } from './icons/HistoryIcon';
+import { generateImageForFlashcard } from '../services/geminiService';
+
 
 // --- ICONS ---
 const PlusIcon: React.FC<{className?: string}> = ({className}) => (
-    <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
 );
 const BackArrowIcon: React.FC<{className?: string}> = ({className}) => (
-    <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
 );
 const ComputerIcon: React.FC = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
 );
 const MoreIcon: React.FC<{className?: string}> = ({className}) => (
-    <svg className={className} xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle><circle cx="5" cy="12" r="1"></circle></svg>
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle><circle cx="5" cy="12" r="1"></circle></svg>
 )
 const TrashIcon: React.FC<{className?: string}> = ({className}) => (
-    <svg className={className} xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+)
+const EditIcon: React.FC<{className?: string}> = ({className}) => (
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
 )
 const FolderIcon: React.FC<{className?: string}> = ({className}) => (
-    <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"></path></svg>
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"></path></svg>
 );
 
 const FileIcon: React.FC<{ type: CourseFile['type'] }> = ({ type }) => {
@@ -86,7 +93,7 @@ const FlashcardPracticeModal: React.FC<FlashcardPracticeModalProps> = ({ studySe
             Card {currentIndex + 1} of {shuffledCards.length}
         </p>
         
-        <div className="w-full h-48 cursor-pointer" style={{ perspective: '1000px' }} onClick={() => setIsFlipped(f => !f)}>
+        <div className="w-full h-64 cursor-pointer" style={{ perspective: '1000px' }} onClick={() => setIsFlipped(f => !f)}>
             <motion.div
                 className="relative w-full h-full"
                 style={{ transformStyle: 'preserve-3d' }}
@@ -95,11 +102,13 @@ const FlashcardPracticeModal: React.FC<FlashcardPracticeModalProps> = ({ studySe
                 variants={cardVariants}
                 transition={{ duration: 0.6 }}
             >
-                <div className="absolute w-full h-full bg-white dark:bg-gray-700 rounded-lg shadow-lg flex items-center justify-center p-4 text-center text-xl" style={{ backfaceVisibility: 'hidden' }}>
-                    {currentCard.front}
+                <div className="absolute w-full h-full bg-white dark:bg-gray-700 rounded-lg shadow-lg flex flex-col items-center justify-center p-4 text-center" style={{ backfaceVisibility: 'hidden' }}>
+                    {currentCard.frontImage && <img src={currentCard.frontImage} alt="Front" className="max-h-32 object-contain mb-2"/>}
+                    <p className="text-xl">{currentCard.front}</p>
                 </div>
-                <div className="absolute w-full h-full bg-cyan-100 dark:bg-cyan-900 rounded-lg shadow-lg flex items-center justify-center p-4 text-center text-xl" style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}>
-                    {currentCard.back}
+                <div className="absolute w-full h-full bg-cyan-100 dark:bg-cyan-900 rounded-lg shadow-lg flex flex-col items-center justify-center p-4 text-center" style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}>
+                    {currentCard.backImage && <img src={currentCard.backImage} alt="Back" className="max-h-32 object-contain mb-2"/>}
+                    <p className="text-xl">{currentCard.back}</p>
                 </div>
             </motion.div>
         </div>
@@ -386,9 +395,123 @@ const LinksTab: React.FC<{ course: Course, onCourseUpdate: (updatedCourse: Cours
     );
 };
 
+interface FlashcardFormModalProps {
+  courseName: string;
+  studySetName: string;
+  flashcard: Omit<Flashcard, 'id'> | Flashcard | null;
+  onClose: () => void;
+  onSave: (card: Omit<Flashcard, 'id'> | Flashcard) => void;
+}
+
+const FlashcardFormModal: React.FC<FlashcardFormModalProps> = ({ courseName, studySetName, flashcard, onClose, onSave }) => {
+  const [front, setFront] = useState(flashcard?.front || '');
+  const [back, setBack] = useState(flashcard?.back || '');
+  const [frontImage, setFrontImage] = useState<string | null>(flashcard?.frontImage || null);
+  const [backImage, setBackImage] = useState<string | null>(flashcard?.backImage || null);
+  const [isGenerating, setIsGenerating] = useState<'front' | 'back' | null>(null);
+  const [generationError, setGenerationError] = useState('');
+
+  const frontUploadRef = useRef<HTMLInputElement>(null);
+  const backUploadRef = useRef<HTMLInputElement>(null);
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>, side: 'front' | 'back') => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (side === 'front') setFrontImage(reader.result as string);
+        else setBackImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleGenerateImage = async (side: 'front' | 'back') => {
+    const text = side === 'front' ? front : back;
+    if (!text) {
+      alert('Please provide some text to generate an image from.');
+      return;
+    }
+    
+    const promptText = `An educational flashcard image for the course "${courseName}" in the study set "${studySetName}". The concept is: "${text}". Keep it simple and clear.`;
+    
+    setIsGenerating(side);
+    setGenerationError('');
+    try {
+      const base64Data = await generateImageForFlashcard(promptText);
+      const imageUrl = `data:image/png;base64,${base64Data}`;
+      if (side === 'front') setFrontImage(imageUrl);
+      else setBackImage(imageUrl);
+    } catch (error: any) {
+      setGenerationError(error.message || 'Failed to generate image.');
+    } finally {
+      setIsGenerating(null);
+    }
+  };
+
+  const handleSave = () => {
+    if (!front && !frontImage) {
+        alert("The front of the card cannot be empty.");
+        return;
+    }
+     if (!back && !backImage) {
+        alert("The back of the card cannot be empty.");
+        return;
+    }
+    onSave({ ...(flashcard || {}), front, back, frontImage: frontImage || undefined, backImage: backImage || undefined });
+  };
+  
+  const renderImageTools = (side: 'front' | 'back') => {
+    const image = side === 'front' ? frontImage : backImage;
+    const ref = side === 'front' ? frontUploadRef : backUploadRef;
+    const setImage = side === 'front' ? setFrontImage : setBackImage;
+
+    return (
+      <div className="mt-2">
+        {image && (
+          <div className="relative group mb-2">
+            <img src={image} alt={`Flashcard ${side}`} className="w-full h-32 object-contain rounded-md bg-gray-100 dark:bg-gray-700"/>
+            <button onClick={() => setImage(null)} className="absolute top-1 right-1 p-1 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity">&times;</button>
+          </div>
+        )}
+        <div className="flex gap-2 text-xs">
+           <input type="file" accept="image/*" ref={ref} onChange={(e) => handleImageUpload(e, side)} className="hidden" />
+           <button type="button" onClick={() => ref.current?.click()} className="flex-1 py-1 border rounded-md hover:bg-gray-100 dark:hover:bg-gray-800">Upload</button>
+           <button type="button" onClick={() => handleGenerateImage(side)} disabled={!!isGenerating} className="flex-1 py-1 border rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50">
+             {isGenerating === side ? 'Generating...' : 'AI Generate'}
+           </button>
+        </div>
+      </div>
+    );
+  };
+  
+  return (
+    <Modal isOpen={true} onClose={onClose} title={flashcard && 'id' in flashcard ? 'Edit Flashcard' : 'Add Flashcard'}>
+        <div className="space-y-4">
+            <div>
+                <label className="font-semibold">Front</label>
+                <textarea value={front} onChange={(e) => setFront(e.target.value)} className="w-full p-2 mt-1 border rounded dark:bg-gray-700 dark:border-gray-600" rows={3}/>
+                {renderImageTools('front')}
+            </div>
+            <div>
+                <label className="font-semibold">Back</label>
+                <textarea value={back} onChange={(e) => setBack(e.target.value)} className="w-full p-2 mt-1 border rounded dark:bg-gray-700 dark:border-gray-600" rows={3}/>
+                {renderImageTools('back')}
+            </div>
+            {generationError && <p className="text-red-500 text-sm text-center">{generationError}</p>}
+        </div>
+        <div className="flex justify-end gap-2 mt-6">
+            <button onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-md">Cancel</button>
+            <button onClick={handleSave} className="px-4 py-2 text-white bg-cyan-600 rounded-md">Save</button>
+        </div>
+    </Modal>
+  );
+};
+
 const StudySetsTab: React.FC<{ course: Course, onCourseUpdate: (updatedCourse: Course) => void }> = ({ course, onCourseUpdate }) => {
     const [expandedSetId, setExpandedSetId] = useState<string | null>(null);
     const [practiceSet, setPracticeSet] = useState<StudySet | null>(null);
+    const [editingCardInfo, setEditingCardInfo] = useState<{setId: string; card: Flashcard | 'new'} | null>(null);
 
     const addSet = () => {
         const name = prompt("Enter new study set name (e.g., 'Midterm Review'):");
@@ -397,14 +520,23 @@ const StudySetsTab: React.FC<{ course: Course, onCourseUpdate: (updatedCourse: C
         onCourseUpdate({ ...course, studySets: [...course.studySets, newSet] });
     };
 
-    const addFlashcard = (setId: string) => {
-        const front = prompt("Enter flashcard front (question/term):");
-        if (!front) return;
-        const back = prompt("Enter flashcard back (answer/definition):");
-        if (!back) return;
-        const newCard: Flashcard = { id: Date.now().toString(), front, back };
-        const updatedSets = course.studySets.map(s => s.id === setId ? { ...s, flashcards: [...s.flashcards, newCard] } : s);
+    const saveFlashcard = (cardToSave: Omit<Flashcard, 'id'> | Flashcard) => {
+        if (!editingCardInfo) return;
+        const { setId } = editingCardInfo;
+
+        const updatedSets = course.studySets.map(s => {
+            if (s.id !== setId) return s;
+            
+            if ('id' in cardToSave) { // Editing existing card
+                return { ...s, flashcards: s.flashcards.map(fc => fc.id === cardToSave.id ? cardToSave : fc) };
+            } else { // Adding new card
+                const newCard: Flashcard = { ...cardToSave, id: Date.now().toString() };
+                return { ...s, flashcards: [...s.flashcards, newCard] };
+            }
+        });
+        
         onCourseUpdate({ ...course, studySets: updatedSets });
+        setEditingCardInfo(null);
     };
 
     const deleteFlashcard = (setId: string, cardId: string) => {
@@ -435,16 +567,27 @@ const StudySetsTab: React.FC<{ course: Course, onCourseUpdate: (updatedCourse: C
                        {expandedSetId === set.id && (
                            <div className="mt-4 pt-4 border-t border-dashed">
                                <div className="flex justify-end mb-2">
-                                  <button onClick={() => addFlashcard(set.id)} className="px-3 py-1 text-xs font-semibold bg-cyan-600 text-white rounded-md">+ Flashcard</button>
+                                  <button onClick={() => setEditingCardInfo({setId: set.id, card: 'new'})} className="px-3 py-1 text-xs font-semibold bg-cyan-600 text-white rounded-md">+ Flashcard</button>
                                </div>
                                <div className="space-y-2">
                                    {set.flashcards.map(card => (
-                                       <div key={card.id} className="p-3 bg-gray-50 dark:bg-gray-800 rounded-md flex justify-between items-start">
-                                           <div>
-                                               <p><strong>Front:</strong> {card.front}</p>
-                                               <p><strong>Back:</strong> {card.back}</p>
+                                       <div key={card.id} className="p-3 bg-gray-50 dark:bg-gray-800 rounded-md flex justify-between items-start gap-4">
+                                           <div className="grid grid-cols-2 gap-4 flex-grow">
+                                               <div>
+                                                   <p className="font-semibold text-xs text-gray-500">FRONT</p>
+                                                   {card.frontImage && <img src={card.frontImage} alt="Front" className="w-full h-24 object-contain my-1 rounded-sm bg-white dark:bg-gray-700"/>}
+                                                   <p>{card.front}</p>
+                                               </div>
+                                                <div>
+                                                   <p className="font-semibold text-xs text-gray-500">BACK</p>
+                                                   {card.backImage && <img src={card.backImage} alt="Back" className="w-full h-24 object-contain my-1 rounded-sm bg-white dark:bg-gray-700"/>}
+                                                   <p>{card.back}</p>
+                                               </div>
                                            </div>
-                                           <button onClick={() => deleteFlashcard(set.id, card.id)}><TrashIcon className="text-gray-400 hover:text-red-500"/></button>
+                                           <div className="flex flex-col gap-1">
+                                               <button onClick={() => setEditingCardInfo({ setId: set.id, card })} className="text-gray-400 hover:text-blue-500 p-1"><EditIcon className="w-4 h-4"/></button>
+                                               <button onClick={() => deleteFlashcard(set.id, card.id)}><TrashIcon className="text-gray-400 hover:text-red-500"/></button>
+                                           </div>
                                        </div>
                                    ))}
                                </div>
@@ -454,6 +597,15 @@ const StudySetsTab: React.FC<{ course: Course, onCourseUpdate: (updatedCourse: C
                 ))}
             </div>
             {practiceSet && <FlashcardPracticeModal studySet={practiceSet} onClose={() => setPracticeSet(null)} />}
+            {editingCardInfo && (
+                <FlashcardFormModal
+                    courseName={course.name}
+                    studySetName={course.studySets.find(s => s.id === editingCardInfo.setId)?.name || ''}
+                    flashcard={editingCardInfo.card === 'new' ? null : editingCardInfo.card}
+                    onClose={() => setEditingCardInfo(null)}
+                    onSave={saveFlashcard}
+                />
+            )}
         </div>
     )
 }
@@ -717,12 +869,16 @@ interface CoursesListViewProps {
     onAddCourse: () => void;
     onRenameCourse: (id: string, newName: string) => void;
     onDeleteCourse: (id: string) => void;
+    history: HistoryItem[];
+    setHistory: React.Dispatch<React.SetStateAction<HistoryItem[]>>;
 }
 const CoursesListView: React.FC<CoursesListViewProps> = (props) => {
-    const { onLoadVideo, courses, onSelectCourse, onAddCourse, onRenameCourse, onDeleteCourse } = props;
+    const { onLoadVideo, courses, onSelectCourse, onAddCourse, onRenameCourse, onDeleteCourse, history, setHistory } = props;
     const [search, setSearch] = useState('');
     const [modal, setModal] = useState<{type: 'rename' | 'delete', course?: Course} | null>(null);
     const [courseName, setCourseName] = useState('');
+    const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+    const historyRef = useRef<HTMLDivElement>(null);
 
     const filteredCourses = useMemo(() => {
         return courses.filter(course => 
@@ -731,6 +887,26 @@ const CoursesListView: React.FC<CoursesListViewProps> = (props) => {
         );
     }, [courses, search]);
     
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (historyRef.current && !historyRef.current.contains(event.target as Node)) {
+                setIsHistoryOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const handleHistoryClick = (url: string) => {
+        onLoadVideo(url);
+        setIsHistoryOpen(false);
+    };
+
+    const handleDeleteHistoryItem = (e: React.MouseEvent, urlToDelete: string) => {
+        e.stopPropagation();
+        setHistory(prev => prev.filter(item => item.url !== urlToDelete));
+    };
+
     const handleModalSubmit = () => {
         if (modal?.type === 'rename' && modal.course && courseName) {
             onRenameCourse(modal.course.id, courseName);
@@ -748,17 +924,62 @@ const CoursesListView: React.FC<CoursesListViewProps> = (props) => {
             <h1 className="text-3xl font-bold mb-2">Courses</h1>
             <p className="text-gray-600 dark:text-gray-400 mb-6">Create a course folder to keep track of course-related files.</p>
             
-            <div className="relative mb-6">
-                 <input
-                    type="text"
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                    placeholder="Search a course"
-                    className="w-full p-3 pl-10 border-2 border-black dark:border-gray-500 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:outline-none"
-                 />
-                 <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                 </div>
+            <div className="relative mb-6 flex items-center gap-2">
+                <div className="relative flex-grow">
+                     <input
+                        type="text"
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                        placeholder="Search a course"
+                        className="w-full p-3 pl-10 border-2 border-black dark:border-gray-500 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:outline-none"
+                     />
+                     <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                     </div>
+                </div>
+                 <div className="relative" ref={historyRef}>
+                    <button 
+                        onClick={() => setIsHistoryOpen(prev => !prev)}
+                        className="flex-shrink-0 flex items-center gap-2 px-3 py-3 text-sm font-medium text-gray-700 bg-white dark:bg-gray-800 border-2 border-black dark:border-gray-500 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 dark:focus:ring-offset-gray-900 transition-colors"
+                    >
+                        <HistoryIcon /> History
+                    </button>
+                    <AnimatePresence>
+                    {isHistoryOpen && (
+                        <motion.div
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            className="absolute right-0 mt-2 w-72 bg-white dark:bg-gray-800 rounded-md shadow-lg border dark:border-gray-700 z-50"
+                        >
+                            <ul className="py-1 max-h-80 overflow-y-auto">
+                                {history.length > 0 ? (
+                                history.map((item, index) => (
+                                    <li key={index}>
+                                    <button
+                                        onClick={() => handleHistoryClick(item.url)}
+                                        title={item.url}
+                                        className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex justify-between items-center group"
+                                    >
+                                        <span className="truncate block flex-grow">{item.title}</span>
+                                        <button 
+                                            onClick={(e) => handleDeleteHistoryItem(e, item.url)}
+                                            className="ml-2 p-1 rounded-full text-gray-400 hover:bg-red-100 dark:hover:bg-red-900/50 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                            aria-label="Delete history item"
+                                        >
+                                            <TrashIcon className="w-4 h-4" />
+                                        </button>
+                                    </button>
+                                    </li>
+                                ))
+                                ) : (
+                                <li className="px-4 py-2 text-sm text-gray-500">No recent videos.</li>
+                                )}
+                            </ul>
+                        </motion.div>
+                    )}
+                    </AnimatePresence>
+                </div>
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -800,9 +1021,11 @@ interface CoursesPageProps {
   onLoadVideo: (url: string) => void;
   courses: Course[];
   setCourses: React.Dispatch<React.SetStateAction<Course[]>>;
+  history: HistoryItem[];
+  setHistory: React.Dispatch<React.SetStateAction<HistoryItem[]>>;
 }
 
-const CoursesPage: React.FC<CoursesPageProps> = ({ onLoadVideo, courses, setCourses }) => {
+const CoursesPage: React.FC<CoursesPageProps> = ({ onLoadVideo, courses, setCourses, history, setHistory }) => {
     const [viewMode, setViewMode] = useState<'list' | 'detail' | 'create'>('list');
     const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
 
@@ -845,6 +1068,8 @@ const CoursesPage: React.FC<CoursesPageProps> = ({ onLoadVideo, courses, setCour
             }
         }}
         onDeleteCourse={handleDeleteCourse}
+        history={history}
+        setHistory={setHistory}
     />
 }
 
