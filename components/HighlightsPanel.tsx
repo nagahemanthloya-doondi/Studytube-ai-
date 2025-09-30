@@ -24,6 +24,7 @@ const HighlightsPanel: React.FC<HighlightsPanelProps> = ({ timestamps, setTimest
   const [isParsingSectionOpen, setIsParsingSectionOpen] = useState(true);
   
   const itemRefs = useRef<(HTMLLIElement | null)[]>([]);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     itemRefs.current = itemRefs.current.slice(0, timestamps.length);
@@ -124,68 +125,77 @@ const HighlightsPanel: React.FC<HighlightsPanelProps> = ({ timestamps, setTimest
         </AnimatePresence>
       </div>
 
-      <div className="flex-grow overflow-y-auto pr-2 p-4 min-h-0">
-        {timestamps.length > 0 ? (
-          <motion.ul layout className="space-y-2">
-            <AnimatePresence>
-            {timestamps.map((ts, index) => {
-              const nextTs = timestamps[index + 1];
-              const isActive = currentTime >= ts.time && (nextTs ? currentTime < nextTs.time : true);
-              
-              const segmentEndTime = nextTs ? nextTs.time : duration;
-              const segmentDuration = segmentEndTime - ts.time;
+      <div className="flex-grow min-h-0 relative">
+        <div className="absolute top-0 left-0 right-0 h-4 bg-gradient-to-b from-white dark:from-gray-900 to-transparent pointer-events-none z-10" />
+        <div ref={scrollContainerRef} className="h-full overflow-y-auto pr-2 p-4">
+          {timestamps.length > 0 ? (
+            <motion.ul layout className="space-y-2">
+              <AnimatePresence>
+              {timestamps.map((ts, index) => {
+                const nextTs = timestamps[index + 1];
+                const isActive = currentTime >= ts.time && (nextTs ? currentTime < nextTs.time : true);
+                
+                const segmentEndTime = nextTs ? nextTs.time : duration;
+                const segmentDuration = segmentEndTime - ts.time;
 
-              let progressPercentage = 0;
-              if (isActive && segmentDuration > 0) {
-                  const progressInSegment = (currentTime - ts.time) / segmentDuration;
-                  progressPercentage = Math.max(0, Math.min(100, progressInSegment * 100));
-              }
+                let progressPercentage = 0;
+                if (isActive && segmentDuration > 0) {
+                    const progressInSegment = (currentTime - ts.time) / segmentDuration;
+                    progressPercentage = Math.max(0, Math.min(100, progressInSegment * 100));
+                }
 
-              return (
-              <motion.li 
-                ref={el => (itemRefs.current[index] = el)}
-                key={ts.id}
-                layout
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.2 }}
-              >
-                <button
-                  onClick={() => onTimestampClick(ts.time)}
-                  className={`relative w-full text-left p-3 rounded-md transition-all duration-200 overflow-hidden ${isActive ? 'bg-cyan-100 dark:bg-cyan-900/50' : 'hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+                return (
+                <motion.li 
+                  ref={el => (itemRefs.current[index] = el)}
+                  key={ts.id}
+                  layout
+                  variants={{
+                    hidden: { opacity: 0, y: 20 },
+                    visible: { opacity: 1, y: 0 }
+                  }}
+                  initial="hidden"
+                  whileInView="visible"
+                  viewport={{ root: scrollContainerRef, amount: 0.4, once: false }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.3 }}
                 >
-                  {isActive && (
-                    <motion.div 
-                        layoutId="highlight-bar"
-                        className="absolute left-0 top-0 h-full w-1 bg-cyan-500"
-                        transition={{type: 'spring', stiffness: 300, damping: 30}}
-                    />
-                  )}
-                  <div className={isActive ? 'ml-2' : ''}>
-                    <span className="font-mono font-semibold text-cyan-600 dark:text-cyan-400 mr-3">
-                        {formatTime(ts.time)}
-                    </span>
-                    <span className="text-gray-800 dark:text-gray-200">{ts.content}</span>
-                  </div>
-                   {isActive && segmentDuration > 0 && (
-                       <div className="absolute bottom-0 left-0 h-1 w-full bg-cyan-500/20">
-                           <div
-                             className="h-full bg-cyan-500 transition-all duration-500 ease-linear"
-                             style={{ width: `${progressPercentage}%` }}
-                           />
-                       </div>
+                  <button
+                    onClick={() => onTimestampClick(ts.time)}
+                    className={`relative w-full text-left p-3 rounded-md transition-all duration-200 overflow-hidden ${isActive ? 'bg-cyan-100 dark:bg-cyan-900/50' : 'hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+                  >
+                    {isActive && (
+                      <motion.div 
+                          layoutId="highlight-bar"
+                          className="absolute left-0 top-0 h-full w-1 bg-cyan-500"
+                          transition={{type: 'spring', stiffness: 300, damping: 30}}
+                      />
                     )}
-                </button>
-              </motion.li>
-            )})}
-            </AnimatePresence>
-          </motion.ul>
-        ) : (
-          <div className="text-center text-gray-500 my-4 px-4 text-sm">
-            <p>No highlights yet. Paste notes in the text box above and click "Parse Highlights" to begin.</p>
-          </div>
-        )}
+                    <div className={isActive ? 'ml-2' : ''}>
+                      <span className="font-mono font-semibold text-cyan-600 dark:text-cyan-400 mr-3">
+                          {formatTime(ts.time)}
+                      </span>
+                      <span className="text-gray-800 dark:text-gray-200">{ts.content}</span>
+                    </div>
+                     {isActive && segmentDuration > 0 && (
+                         <div className="absolute bottom-0 left-0 h-1 w-full bg-cyan-500/20">
+                             <div
+                               className="h-full bg-cyan-500 transition-all duration-500 ease-linear"
+                               style={{ width: `${progressPercentage}%` }}
+                             />
+                         </div>
+                      )}
+                  </button>
+                </motion.li>
+              )})}
+              </AnimatePresence>
+            </motion.ul>
+          ) : (
+            <div className="text-center text-gray-500 my-4 px-4 text-sm">
+              <p>No highlights yet. Paste notes in the text box above and click "Parse Highlights" to begin.</p>
+            </div>
+          )}
+        </div>
+        <div className="absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-t from-white dark:from-gray-900 to-transparent pointer-events-none z-10" />
       </div>
 
       <Modal

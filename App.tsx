@@ -1,8 +1,9 @@
 
 
+
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useLocalStorage } from './hooks/useLocalStorage';
-import type { InsertedLink, Theme, PlayerState, Message, HistoryItem, VideoSession, QuizItem, TimestampedNote, Course, Schedule, UserProfile, TodoItem } from './types';
+import type { InsertedLink, Theme, PlayerState, Message, HistoryItem, VideoSession, QuizItem, TimestampedNote, Course, Schedule, UserProfile, TodoItem, ScheduleTime, Day } from './types';
 import { Chat } from '@google/genai';
 import { getGeminiChat, generateQuiz } from './services/geminiService';
 import Header from './components/Header';
@@ -72,6 +73,10 @@ const App: React.FC = () => {
   // PDF State
   const [pdfFile, setPdfFile] = useState<File | null>(null);
 
+  // Notification State
+  const [notificationPermission, setNotificationPermission] = useState('default');
+  const timeoutIds = useRef<number[]>([]);
+
   const previousVideoIdRef = useRef<string | null>(null);
 
   const pdfFileUrl = useMemo(() => (pdfFile ? URL.createObjectURL(pdfFile) : null), [pdfFile]);
@@ -97,6 +102,108 @@ const App: React.FC = () => {
   useEffect(() => {
     setChat(getGeminiChat());
   }, []);
+
+  useEffect(() => {
+    if ('Notification' in window) {
+      setNotificationPermission(Notification.permission);
+    }
+  }, []);
+
+  const handleRequestNotificationPermission = async () => {
+    if ('Notification' in window) {
+      const permission = await Notification.requestPermission();
+      setNotificationPermission(permission);
+    }
+  };
+
+  useEffect(() => {
+    // Clear previous timeouts
+    timeoutIds.current.forEach(clearTimeout);
+    timeoutIds.current = [];
+
+    if (notificationPermission !== 'granted') {
+      return;
+    }
+
+    const scheduleLocalNotification = (itemDate: Date, title: string, body: string) => {
+      const notifyTime = itemDate.getTime() - 5 * 60 * 1000; // 5 minutes before
+      const now = Date.now();
+      
+      if (notifyTime > now) {
+        const timeoutId = window.setTimeout(() => {
+          new Notification(title, { body, icon: '/vite.svg' });
+        }, notifyTime - now);
+        timeoutIds.current.push(timeoutId);
+      }
+    };
+
+    // --- Schedule Todos ---
+    const allTodos = [
+        ...homeTodos.filter(t => !t.completed && t.dueDate),
+        ...courses.flatMap(c => c.todos.map(t => ({...t, subject: t.subject || c.name}))).filter(t => !t.completed && t.dueDate)
+    ];
+
+    allTodos.forEach(todo => {
+        if (todo.dueDate) {
+            const dueDate = new Date(todo.dueDate);
+            scheduleLocalNotification(dueDate, `Task Reminder: ${todo.text}`, `Due in 5 minutes${todo.subject ? ` for ${todo.subject}`: ''}.`);
+        }
+    });
+
+    // --- Schedule Classes ---
+    const getNextOccurrence = (scheduleTime: ScheduleTime): Date | null => {
+      const now = new Date();
+      const todayDayIndex = now.getDay(); // 0=Sun, 1=Mon...
+      const daysOfWeek = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+      const [startHours, startMinutes] = scheduleTime.startTime.split(':').map(Number);
+      
+      const sortedEventDays = scheduleTime.days
+        .map(day => daysOfWeek.indexOf(day))
+        .sort((a, b) => a - b);
+
+      if (sortedEventDays.length === 0) return null;
+
+      for (const eventDayIndex of sortedEventDays) {
+        const dayDiff = (eventDayIndex - todayDayIndex + 7) % 7;
+        const nextDate = new Date(now);
+        nextDate.setDate(now.getDate() + dayDiff);
+        nextDate.setHours(startHours, startMinutes, 0, 0);
+
+        if (nextDate > now) {
+          return nextDate; // Found the next occurrence this week
+        }
+      }
+
+      // All occurrences this week have passed, find the first one next week
+      const firstEventDayNextWeek = sortedEventDays[0];
+      const dayDiff = (firstEventDayNextWeek - todayDayIndex + 7) % 7 + 7;
+      const nextDate = new Date(now);
+      nextDate.setDate(now.getDate() + dayDiff);
+      nextDate.setHours(startHours, startMinutes, 0, 0);
+      
+      return nextDate;
+    };
+
+    const allSchedulesToProcess = [
+      ...schedules.flatMap(s => s.times.map(t => ({ scheduleInfo: s, timeInfo: t }))),
+      ...courses.flatMap(c => c.schedules.map(t => ({ scheduleInfo: { id: c.id, title: c.name, instructor: c.instructor, location: c.location, color: c.color }, timeInfo: t })))
+    ];
+    
+    allSchedulesToProcess.forEach(({ scheduleInfo, timeInfo }) => {
+        const nextOccurrence = getNextOccurrence(timeInfo);
+        if (nextOccurrence) {
+            scheduleLocalNotification(
+                nextOccurrence,
+                `Class Starting Soon: ${scheduleInfo.title}`,
+                `Starts in 5 minutes${scheduleInfo.location ? ` at ${scheduleInfo.location}`: ''}.`
+            );
+        }
+    });
+
+    return () => {
+      timeoutIds.current.forEach(clearTimeout);
+    };
+  }, [schedules, courses, homeTodos, notificationPermission]);
   
   const toggleTheme = () => {
     setTheme(prevTheme => (prevTheme === 'light' ? 'dark' : 'light'));
@@ -371,7 +478,7 @@ const App: React.FC = () => {
               exit={{ opacity: 0 }}
               className="pb-24"
             >
-              {activeView === 'Home' && <HomePage profile={profile} setProfile={setProfile} homeTodos={homeTodos} setHomeTodos={setHomeTodos} courses={courses} setCourses={setCourses} />}
+              {activeView === 'Home' && <HomePage profile={profile} setProfile={setProfile} homeTodos={homeTodos} setHomeTodos={setHomeTodos} courses={courses} setCourses={setCourses} notificationPermission={notificationPermission} onEnableNotifications={handleRequestNotificationPermission} />}
               {activeView === 'Course' && <CoursesPage onLoadVideo={loadVideo} courses={courses} setCourses={setCourses} />}
               {activeView === 'Schedule' && <SchedulePage schedules={schedules} setSchedules={setSchedules} courses={courses} />}
                <BottomNavBar activeView={activeView} setActiveView={setActiveView} />

@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import type { UserProfile, TodoItem, Course } from '../types';
 import Modal from './Modal';
@@ -11,6 +12,12 @@ const BackArrowIcon: React.FC<{className?: string}> = ({className}) => (
 const PlusIcon: React.FC<{className?: string}> = ({className}) => (
     <svg className={className} xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
 );
+const BellIcon: React.FC = () => (
+    <svg className="h-6 w-6 text-yellow-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+    </svg>
+);
+
 
 // --- ICONS for TODOs ---
 const LabReportIcon = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M9 20H4C3.44772 20 3 19.5523 3 19V5C3 4.44772 3.44772 4 4 4H9" stroke="#4B5563" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M12 4H20C20.5523 4 21 4.44772 21 5V19C21 19.5523 20.5523 20 20 20H12" stroke="#4B5563" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><rect x="9" y="2" width="6" height="4" rx="1" stroke="#4B5563" strokeWidth="2"/></svg>;
@@ -51,9 +58,11 @@ interface HomePageProps {
     setHomeTodos: React.Dispatch<React.SetStateAction<TodoItem[]>>;
     courses: Course[];
     setCourses: React.Dispatch<React.SetStateAction<Course[]>>;
+    notificationPermission: string;
+    onEnableNotifications: () => void;
 }
 
-const HomePage: React.FC<HomePageProps> = ({ profile, setProfile, homeTodos, setHomeTodos, courses, setCourses }) => {
+const HomePage: React.FC<HomePageProps> = ({ profile, setProfile, homeTodos, setHomeTodos, courses, setCourses, notificationPermission, onEnableNotifications }) => {
     const [isEditingId, setIsEditingId] = useState(false);
     const [currentDate, setCurrentDate] = useState('');
 
@@ -75,6 +84,27 @@ const HomePage: React.FC<HomePageProps> = ({ profile, setProfile, homeTodos, set
                 <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-200">Hello, {profile.name}</h1>
                 <p className="text-gray-500 dark:text-gray-400">{currentDate}</p>
             </div>
+
+            {notificationPermission === 'default' && (
+                <div className="bg-yellow-50 dark:bg-yellow-900/30 border-l-4 border-yellow-400 p-4 rounded-md">
+                    <div className="flex">
+                        <div className="flex-shrink-0">
+                            <BellIcon />
+                        </div>
+                        <div className="ml-3">
+                            <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                                Get reminders for your schedule!
+                            </p>
+                            <div className="mt-2 text-sm text-yellow-700 dark:text-yellow-300">
+                                <p>Enable notifications to receive alerts 5 minutes before your tasks and classes are due.</p>
+                                <button onClick={onEnableNotifications} className="mt-2 font-semibold underline hover:text-yellow-600 dark:hover:text-yellow-200 focus:outline-none">
+                                    Enable notifications
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
             
             <IDCard profile={profile} onEdit={() => setIsEditingId(true)} />
             <TodoList homeTodos={homeTodos} setHomeTodos={setHomeTodos} courses={courses} setCourses={setCourses} />
@@ -119,7 +149,7 @@ const IDCard: React.FC<{ profile: UserProfile, onEdit: () => void }> = ({ profil
     );
 };
 
-const TodoList: React.FC<Omit<HomePageProps, 'profile' | 'setProfile'>> = ({ homeTodos, setHomeTodos, courses, setCourses }) => {
+const TodoList: React.FC<Omit<HomePageProps, 'profile' | 'setProfile' | 'notificationPermission' | 'onEnableNotifications'>> = ({ homeTodos, setHomeTodos, courses, setCourses }) => {
     const [filter, setFilter] = useState('Ongoing');
     const [isAddModalOpen, setAddModalOpen] = useState(false);
 

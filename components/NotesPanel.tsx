@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import type { Message, QuizItem, InsertedLink, TimestampedNote } from '../types';
 import HighlightsPanel from './HighlightsPanel';
@@ -41,7 +42,7 @@ const NotesPanel: React.FC<NotesPanelProps> = (props) => {
     const { activeTab, setActiveTab } = props;
 
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 h-full flex flex-col">
+    <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 h-[55vh] md:h-full flex flex-col">
         <div className="flex border-b border-gray-200 dark:border-gray-700 px-2 overflow-x-auto flex-shrink-0">
             {TABS.map(tab => (
                 <button 
