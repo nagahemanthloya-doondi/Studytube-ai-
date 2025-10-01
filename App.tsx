@@ -1,8 +1,9 @@
 
 
+
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useLocalStorage } from './hooks/useLocalStorage';
-import type { InsertedLink, Theme, PlayerState, Message, HistoryItem, VideoSession, QuizItem, TimestampedNote, Course, Schedule, UserProfile, TodoItem, ScheduleTime, Day } from './types';
+import type { InsertedLink, Theme, PlayerState, Message, HistoryItem, VideoSession, QuizItem, TimestampedNote, Course, Schedule, UserProfile, TodoItem, ScheduleTime, Day, GoogleAuth } from './types';
 import { Chat } from '@google/genai';
 import { getGeminiChat, generateQuiz } from './services/geminiService';
 import Header from './components/Header';
@@ -34,6 +35,7 @@ const App: React.FC = () => {
     cardColor: '#ffc2d1',
   });
   const [homeTodos, setHomeTodos] = useLocalStorage<TodoItem[]>('studytube-home-todos', []);
+  const [googleAuth, setGoogleAuth] = useLocalStorage<GoogleAuth | null>('studytube-google-auth', null);
   
   const [activeView, setActiveView] = useState('Home');
 
@@ -76,6 +78,9 @@ const App: React.FC = () => {
   const [notificationPermission, setNotificationPermission] = useState('default');
   const timeoutIds = useRef<number[]>([]);
 
+  // Google Sign-In state
+  const [tokenClient, setTokenClient] = useState<any>(null);
+
   const previousVideoIdRef = useRef<string | null>(null);
 
   const pdfFileUrl = useMemo(() => (pdfFile ? URL.createObjectURL(pdfFile) : null), [pdfFile]);
@@ -101,6 +106,43 @@ const App: React.FC = () => {
   useEffect(() => {
     setChat(getGeminiChat());
   }, []);
+
+  useEffect(() => {
+    // Initialize Google Identity Services
+    if (window.google && !tokenClient) {
+      const client = window.google.accounts.oauth2.initTokenClient({
+        // IMPORTANT: Replace with your actual Google Client ID from the Google Cloud Console.
+        client_id: 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com',
+        scope: 'https://www.googleapis.com/auth/calendar.events',
+        callback: (response: any) => {
+          if (response.error) {
+            console.error('Google Sign-In error:', response.error);
+            alert(`Google Sign-In Error: ${response.error_description || response.error}`);
+            return;
+          }
+          setGoogleAuth({ ...response, acquired_at: Date.now() });
+        },
+      });
+      setTokenClient(client);
+    }
+  }, [tokenClient]);
+
+  const handleGoogleSignIn = () => {
+    if (tokenClient) {
+      tokenClient.requestAccessToken();
+    } else {
+      alert('Google Sign-In is not ready yet. Please try again in a moment.');
+    }
+  };
+
+  const handleGoogleSignOut = () => {
+    if (googleAuth) {
+      window.google?.accounts.oauth2.revoke(googleAuth.access_token, () => {
+        setGoogleAuth(null);
+      });
+    }
+  };
+
 
   useEffect(() => {
     if ('Notification' in window) {
@@ -488,9 +530,9 @@ const App: React.FC = () => {
               exit={{ opacity: 0 }}
               className="pb-24"
             >
-              {activeView === 'Home' && <HomePage profile={profile} setProfile={setProfile} homeTodos={homeTodos} setHomeTodos={setHomeTodos} courses={courses} setCourses={setCourses} notificationPermission={notificationPermission} onEnableNotifications={handleRequestNotificationPermission} />}
+              {activeView === 'Home' && <HomePage profile={profile} setProfile={setProfile} homeTodos={homeTodos} setHomeTodos={setHomeTodos} courses={courses} setCourses={setCourses} notificationPermission={notificationPermission} onEnableNotifications={handleRequestNotificationPermission} googleAuth={googleAuth} onGoogleSignIn={handleGoogleSignIn} onGoogleSignOut={handleGoogleSignOut} />}
               {activeView === 'Course' && <CoursesPage onLoadVideo={loadVideo} courses={courses} setCourses={setCourses} history={history} setHistory={setHistory} />}
-              {activeView === 'Schedule' && <SchedulePage schedules={schedules} setSchedules={setSchedules} courses={courses} />}
+              {activeView === 'Schedule' && <SchedulePage schedules={schedules} setSchedules={setSchedules} courses={courses} googleAuth={googleAuth} />}
                <BottomNavBar activeView={activeView} setActiveView={setActiveView} />
             </motion.div>
          ) : (

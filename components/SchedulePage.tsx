@@ -1,22 +1,26 @@
 
 
+
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import type { Schedule, Day, ScheduleTime, Course } from '../types';
+import type { Schedule, Day, ScheduleTime, Course, GoogleAuth } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // --- ICONS ---
 const PlusIcon: React.FC<{ className?: string }> = ({ className }) => (
-    <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="M12 5v14" /></svg>
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14" /><path d="M12 5v14" /></svg>
 );
 const BackArrowIcon: React.FC<{ className?: string }> = ({ className }) => (
-    <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
 );
 const CameraIcon: React.FC<{ className?: string }> = ({ className }) => (
-    <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" /><circle cx="12" cy="13" r="3" /><path d="M12 8v-2" /><path d="M12 8h2" /></svg>
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" /><circle cx="12" cy="13" r="3" /><path d="M12 8v-2" /><path d="M12 8h2" /></svg>
 );
 
 const SCHEDULE_COLORS = ['#FFFFFF', '#FCA5A5', '#BFDBFE', '#D8B4FE', '#A7F3D0', '#FDE68A', '#FFD8B3'];
 const DAYS: Day[] = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+const dayToRrule: Record<Day, string> = {
+    SUN: 'SU', MON: 'MO', TUE: 'TU', WED: 'WE', THU: 'TH', FRI: 'FR', SAT: 'SA',
+};
 
 // --- HELPERS ---
 const getMinutes = (timeStr: string): number => {
@@ -40,6 +44,71 @@ const formatTime12hr = (timeStr: string): string => {
     return `${hours12}:${String(minutes).padStart(2, '0')} ${ampm}`;
 };
 
+const createGoogleCalendarEvent = async (schedule: Omit<Schedule, 'id'>, time: ScheduleTime, accessToken: string) => {
+    const byday = time.days.map(d => dayToRrule[d]).join(',');
+    if (!byday) return; 
+
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const now = new Date();
+    
+    // Find the next occurrence of the first day of the week to start the event
+    const sortedDays = time.days.sort((a,b) => DAYS.indexOf(a) - DAYS.indexOf(b));
+    const firstDayIndex = DAYS.indexOf(sortedDays[0]);
+    const todayIndex = now.getDay();
+    const dayDifference = (firstDayIndex - todayIndex + 7) % 7;
+    
+    const startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + dayDifference);
+    const [startHours, startMinutes] = time.startTime.split(':').map(Number);
+    const [endHours, endMinutes] = time.endTime.split(':').map(Number);
+
+    startDate.setHours(startHours, startMinutes, 0, 0);
+
+    const endDate = new Date(startDate);
+    endDate.setHours(endHours, endMinutes, 0, 0);
+
+    // Make recurrence end in ~6 months
+    const recurrenceEndDate = new Date();
+    recurrenceEndDate.setMonth(recurrenceEndDate.getMonth() + 6);
+    const toGCalDateString = (date: Date) => date.toISOString().replace(/-|:|\.\d{3}/g, '');
+
+    const event = {
+        'summary': schedule.title,
+        'location': schedule.location,
+        'description': `Instructor: ${schedule.instructor}`,
+        'start': {
+            'dateTime': startDate.toISOString(),
+            'timeZone': timeZone,
+        },
+        'end': {
+            'dateTime': endDate.toISOString(),
+            'timeZone': timeZone,
+        },
+        'recurrence': [
+            `RRULE:FREQ=WEEKLY;BYDAY=${byday};UNTIL=${toGCalDateString(recurrenceEndDate)}`
+        ],
+    };
+
+    try {
+        const response = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(event)
+        });
+        const data = await response.json();
+        if (data.error) {
+            console.error('Google Calendar API Error:', data.error);
+            alert(`Error creating calendar event: ${data.error.message}. Your token might have expired. Please try signing out and in again.`);
+        } else {
+            console.log('Google Calendar event created: ', data.htmlLink);
+        }
+    } catch (error) {
+        console.error('Error creating Google Calendar event:', error);
+        alert('An unexpected error occurred while creating the calendar event.');
+    }
+};
 
 // --- SUB-COMPONENTS ---
 
@@ -287,9 +356,10 @@ interface SchedulePageProps {
   schedules: Schedule[];
   setSchedules: React.Dispatch<React.SetStateAction<Schedule[]>>;
   courses: Course[];
+  googleAuth: GoogleAuth | null;
 }
 
-const SchedulePage: React.FC<SchedulePageProps> = ({ schedules, setSchedules, courses }) => {
+const SchedulePage: React.FC<SchedulePageProps> = ({ schedules, setSchedules, courses, googleAuth }) => {
   const [isCreating, setIsCreating] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -349,9 +419,16 @@ const SchedulePage: React.FC<SchedulePageProps> = ({ schedules, setSchedules, co
     return { currentEvent: null, progress: 0 };
   }, [currentTime, allSchedules, todayDay]);
 
-  const handleCreateSchedule = (newSchedule: Omit<Schedule, 'id'>) => {
-    setSchedules(prev => [...prev, { ...newSchedule, id: Date.now().toString() }]);
+  const handleCreateSchedule = (newScheduleData: Omit<Schedule, 'id'>) => {
+    const newSchedule = { ...newScheduleData, id: Date.now().toString() };
+    setSchedules(prev => [...prev, newSchedule]);
     setIsCreating(false);
+
+    if (googleAuth?.access_token) {
+        newSchedule.times.forEach(timeSlot => {
+            createGoogleCalendarEvent(newSchedule, timeSlot, googleAuth.access_token);
+        });
+    }
   };
   
   const handleDeleteSchedule = (scheduleIdToDelete: string) => {

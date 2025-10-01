@@ -1,20 +1,32 @@
 
 
 
+
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import type { UserProfile, TodoItem, Course } from '../types';
+import type { UserProfile, TodoItem, Course, GoogleAuth } from '../types';
 import Modal from './Modal';
 
 // --- ICONS for UI ---
 const BackArrowIcon: React.FC<{className?: string}> = ({className}) => (
-    <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
 );
 const PlusIcon: React.FC<{className?: string}> = ({className}) => (
-    <svg className={className} xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
 );
 const BellIcon: React.FC = () => (
     <svg className="h-6 w-6 text-yellow-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+    </svg>
+);
+const GoogleIcon = () => (
+    <svg className="w-5 h-5 mr-2" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <g clipPath="url(#clip0_123_456)">
+            <path d="M47.532 24.552c0-1.566-.14-3.084-.401-4.548H24.5v8.532h12.94c-.552 2.736-2.145 5.076-4.548 6.696v5.52h7.02c4.116-3.804 6.528-9.456 6.528-16.2z" fill="#4285F4"/>
+            <path d="M24.5 48.0001c6.438 0 11.916-2.136 15.894-5.724l-7.02-5.52c-2.136 1.428-4.836 2.268-7.874 2.268-5.976 0-11.088-4.008-12.9-9.396H3.822v5.712c3.78 7.56 11.532 12.66 20.678 12.66z" fill="#34A853"/>
+            <path d="M11.6 28.704c-.42-.924-.66-1.944-.66-3.012s.24-2.088.66-3.012l-7.77-6.024C1.248 21.228 0 26.4 0 32.04s1.248 10.812 3.822 15.024l7.77-5.364z" fill="#FBBC05"/>
+            <path d="M24.5 9.78c3.318 0 6.138 1.152 8.46 3.372l6.21-6.21C36.416 2.148 30.938 0 24.5 0 15.562 0 7.81 5.1 4.038 12.66l7.562 5.868c1.812-5.4 6.924-9.396 12.9-9.396z" fill="#EA4335"/>
+        </g>
+        <defs><clipPath id="clip0_123_456"><path fill="#fff" d="M0 0h48v48H0z"/></clipPath></defs>
     </svg>
 );
 
@@ -60,9 +72,12 @@ interface HomePageProps {
     setCourses: React.Dispatch<React.SetStateAction<Course[]>>;
     notificationPermission: string;
     onEnableNotifications: () => void;
+    googleAuth: GoogleAuth | null;
+    onGoogleSignIn: () => void;
+    onGoogleSignOut: () => void;
 }
 
-const HomePage: React.FC<HomePageProps> = ({ profile, setProfile, homeTodos, setHomeTodos, courses, setCourses, notificationPermission, onEnableNotifications }) => {
+const HomePage: React.FC<HomePageProps> = ({ profile, setProfile, homeTodos, setHomeTodos, courses, setCourses, notificationPermission, onEnableNotifications, googleAuth, onGoogleSignIn, onGoogleSignOut }) => {
     const [isEditingId, setIsEditingId] = useState(false);
     const [currentDate, setCurrentDate] = useState('');
 
@@ -80,9 +95,23 @@ const HomePage: React.FC<HomePageProps> = ({ profile, setProfile, homeTodos, set
 
     return (
         <div className="space-y-8">
-            <div>
-                <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-200">Hello, {profile.name}</h1>
-                <p className="text-gray-500 dark:text-gray-400">{currentDate}</p>
+            <div className="flex justify-between items-center flex-wrap gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold text-gray-800 dark:text-gray-200">Hello, {profile.name}</h1>
+                    <p className="text-gray-500 dark:text-gray-400">{currentDate}</p>
+                </div>
+                <div>
+                    {googleAuth ? (
+                      <button onClick={onGoogleSignOut} className="bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-semibold py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150 ease-in-out">
+                        Sign Out
+                      </button>
+                    ) : (
+                      <button onClick={onGoogleSignIn} className="bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-semibold py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center justify-center transition duration-150 ease-in-out">
+                        <GoogleIcon />
+                        Sign in with Google
+                      </button>
+                    )}
+                </div>
             </div>
 
             {notificationPermission === 'default' && (
@@ -149,7 +178,7 @@ const IDCard: React.FC<{ profile: UserProfile, onEdit: () => void }> = ({ profil
     );
 };
 
-const TodoList: React.FC<Omit<HomePageProps, 'profile' | 'setProfile' | 'notificationPermission' | 'onEnableNotifications'>> = ({ homeTodos, setHomeTodos, courses, setCourses }) => {
+const TodoList: React.FC<Omit<HomePageProps, 'profile' | 'setProfile' | 'notificationPermission' | 'onEnableNotifications' | 'googleAuth' | 'onGoogleSignIn' | 'onGoogleSignOut'>> = ({ homeTodos, setHomeTodos, courses, setCourses }) => {
     const [filter, setFilter] = useState('Ongoing');
     const [isAddModalOpen, setAddModalOpen] = useState(false);
 

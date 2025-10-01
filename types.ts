@@ -1,5 +1,6 @@
 
 
+
 export interface InsertedLink {
   id: string;
   time: number;
@@ -129,6 +130,14 @@ export interface UserProfile {
   cardColor: string;
 }
 
+export interface GoogleAuth {
+  access_token: string;
+  expires_in: number;
+  scope: string;
+  token_type: string;
+  acquired_at: number; // Timestamp (Date.now()) when the token was acquired
+}
+
 
 // FIX: Add global type declarations for the YouTube Iframe Player API.
 // This resolves TypeScript errors about the 'YT' namespace not being found
@@ -182,5 +191,6 @@ declare global {
   interface Window {
     onYouTubeIframeAPIReady?: () => void;
     YT?: typeof YT;
+    google?: any;
   }
 }
